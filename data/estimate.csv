@@ -1,0 +1,26 @@
+description,category,sovLineRef,workPackageRef,costCode,phaseCode,qty,unit,unitCost,totalCost,laborHours
+General Distribution Labor - Manholes & Vaults,Field Labor,26G,26G-00920,01-999-00920,,1067,HR,107.05,114124.98,1067
+General Distribution Labor - Duct Bank,Field Labor,26G,26G-00930,01-999-00930,,11951,HR,106.97,1278263.93,11951
+General Distribution Labor - QA/QC & Commissioning,Field Labor,26G,26G-01020,01-999-01020,,1404,HR,110.42,155031.64,1404
+General Distribution Labor - Field Supervision,Field Leadership,26G,26G-01030,01-999-01030,,1228,HR,116.52,143085.81,1228
+General Distribution Labor - Trimble,Field Labor,26G,26G-01050,01-999-01050,,660,HR,104.72,69115.20,660
+General Distribution Labor - Safety,General Conditions,26G,26G-01070,01-999-01070,,351,HR,111.54,39149.75,351
+Specialty Labor - Underground Branch,Field Labor,26S,26S-00120,01-999-00120,,6173.27,HR,104.72,646464.83,6173.27
+Specialty Labor - Feeder Underground Conduit,Field Labor,26S,26S-00200,01-999-00200,,1118.75,HR,104.72,117155.50,1118.75
+Specialty Labor - Feeder Pull/Terminations,Field Labor,26S,26S-00210,01-999-00210,,891.94,HR,104.72,93403.96,891.94
+Specialty Labor - MV Cable Pull,Field Labor,26S,26S-00310,01-999-00310,,1508.60,HR,104.72,157980.59,1508.60
+Specialty Labor - MV Cable Terminations,Field Labor,26S,26S-00320,01-999-00320,,1023.48,HR,104.72,107178.83,1023.48
+Specialty Labor - Site Lighting,Field Labor,26S,26S-00460,01-999-00460,,1472.38,HR,104.72,154187.63,1472.38
+Specialty Labor - Switchgear & Panels,Field Labor,26S,26S-00700,01-999-00700,,1080.04,HR,104.72,113101.79,1080.04
+Specialty Labor - Demolition,Field Labor,26S,26S-00800,01-999-00800,,713.75,HR,104.72,74743.90,713.75
+Specialty Labor - Manholes & Vaults,Field Labor,26S,26S-00980,01-999-00980,,300.80,HR,104.72,31499.78,300.80
+Specialty Labor - Duct Bank / Trench Duct,Field Labor,26S,26S-00985,01-999-00985,,5363.10,HR,104.72,561623.83,5363.10
+Specialty Labor - Material Handler,Field Labor,26S,26S-01020,NP-999-01020,,538.04,HR,111.55,60023.74,538.04
+Specialty Labor - QA/QC,Field Labor,26S,26S-01030,NP-999-01030,,1614.11,HR,116.17,187511.16,1614.11
+Specialty Labor - Commissioning,Field Labor,26S,26S-01035,NP-999-01035,,1614.11,HR,104.72,169029.60,1614.11
+Specialty Labor - Field Supervision,Field Leadership,26S,26S-01039,NP-999-01039,,7325.90,HR,109.15,799643.96,7325.90
+Specialty Labor - Trimble,Field Labor,26S,26S-01045,NP-999-01045,,2959.20,HR,88.51,261916.07,2959.20
+Specialty Labor - Grounding Systems,Field Labor,26S,26S-01100,NP-999-01100,,7255.70,HR,104.72,759816.90,7255.70
+Labor Escalation Allowance,General Conditions,LABOR-ESC,,,,,,81188.10,
+Material - Raceway Underground,Material,MATERIAL,,2100,,1,LS,395118.80,395118.80,
+Material & Subcontract (All Other),Material,MATERIAL,,,,,,,16740730.17,

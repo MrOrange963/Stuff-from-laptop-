@@ -1,0 +1,3296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RFI Builder — CommandScope</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh;font-size:14px}
+/* TOP BAR */
+#topbar{height:50px;background:#1e3a5f;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+#topbar-left{display:flex;align-items:center;gap:10px}
+#topbar-icon{width:32px;height:32px;background:#e8640c;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:14px;flex-shrink:0;letter-spacing:-.5px}
+#topbar-title{color:#fff;font-weight:700;font-size:18px;letter-spacing:.3px}
+#topbar-sub{color:#94b8d9;font-size:11px;margin-left:2px}
+#project-name-display{color:#fff;font-size:13px;cursor:pointer;padding:4px 10px;border:1px solid rgba(255,255,255,.25);border-radius:5px;background:rgba(255,255,255,.08);max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s}
+#project-name-display:hover{background:rgba(255,255,255,.15)}
+#project-name-input{display:none;background:rgba(255,255,255,.12);border:1px solid #e8640c;border-radius:5px;color:#fff;padding:4px 10px;font-size:13px;width:280px;outline:none}
+/* PHASE INDICATOR */
+#phase-bar{background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 24px;display:flex;align-items:center;gap:0}
+.phase-step{display:flex;align-items:center;cursor:pointer;user-select:none}
+.phase-pill{padding:6px 18px;border-radius:20px;font-size:13px;font-weight:600;border:2px solid transparent;transition:all .2s;white-space:nowrap}
+.phase-pill.done{background:#e8640c;color:#fff;border-color:#e8640c}
+.phase-pill.active{background:#fff;color:#e8640c;border-color:#e8640c}
+.phase-pill.future{background:#f1f5f9;color:#94a3b8;border-color:#e2e8f0;cursor:default}
+.phase-arrow{color:#cbd5e1;margin:0 6px;font-size:18px;line-height:1}
+/* MAIN */
+#main{padding:24px;max-width:1200px;margin:0 auto}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;text-decoration:none}
+.btn-primary{background:#e8640c;color:#fff}.btn-primary:hover{background:#cf5800}
+.btn-secondary{background:#fff;color:#1e3a5f;border:1.5px solid #cbd5e1}.btn-secondary:hover{background:#f8fafc;border-color:#94a3b8}
+.btn-ghost{background:transparent;color:#64748b;border:1.5px solid #e2e8f0}.btn-ghost:hover{background:#f1f5f9}
+.btn-danger{background:#fee2e2;color:#dc2626;border:1.5px solid #fca5a5}.btn-danger:hover{background:#fecaca}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+/* UPLOAD ZONE */
+#upload-zone{border:2.5px dashed #cbd5e1;border-radius:12px;background:#fff;padding:60px 40px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:20px}
+#upload-zone:hover,#upload-zone.drag-over{border-color:#e8640c;background:#fff8f4}
+#upload-zone-icon{color:#94a3b8;margin-bottom:14px}
+#upload-zone h3{font-size:18px;color:#334155;margin-bottom:6px}
+#upload-zone p{color:#94a3b8;font-size:13px}
+/* FILE LIST */
+#file-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.file-item{background:#fff;border-radius:8px;border:1px solid #e2e8f0;padding:14px 18px;display:flex;align-items:center;gap:14px}
+.file-item-icon{width:36px;height:36px;background:#fef2e8;border-radius:6px;display:flex;align-items:center;justify-content:center;color:#e8640c;font-weight:700;font-size:11px;flex-shrink:0}
+.file-item-info{flex:1;min-width:0}
+.file-item-name{font-weight:600;color:#1e293b;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-item-status{font-size:12px;color:#64748b;margin-top:2px;display:flex;align-items:center;gap:6px}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid #e2e8f0;border-top-color:#e8640c;border-radius:50%;animation:spin .6s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status-ok{color:#16a34a}
+.status-warn{color:#ca8a04}
+.status-err{color:#dc2626}
+/* SUMMARY BOX */
+#process-summary{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:20px 24px;margin-bottom:20px}
+#process-summary h3{font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:14px}
+.summary-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:13px}
+.summary-row:last-child{border-bottom:none}
+.summary-label{color:#64748b}
+.summary-val{font-weight:600;color:#1e293b}
+/* PHASE 2 LAYOUT */
+#phase2-wrap{display:flex;gap:20px;align-items:flex-start}
+#left-panel{width:310px;flex-shrink:0;display:flex;flex-direction:column;gap:12px;position:sticky;top:74px;max-height:calc(100vh - 90px);overflow-y:auto}
+#items-area{flex:1;min-width:0}
+/* SOURCE PANEL */
+.source-section{background:#fff;border-radius:10px;border:1px solid #e2e8f0;overflow:hidden}
+.source-header{padding:12px 16px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;cursor:pointer;border-bottom:1px solid #e2e8f0}
+.source-header-name{font-size:13px;font-weight:700;color:#1e3a5f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:195px}
+.source-body{padding:12px 16px}
+.job-data-row{font-size:11px;color:#64748b;margin-bottom:3px}
+.job-data-row span{color:#1e293b;font-weight:600}
+.annot-check-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f8fafc;font-size:12px}
+.annot-check-row:last-child{border-bottom:none}
+.annot-check-row input[type=checkbox]{accent-color:#e8640c;width:14px;height:14px;flex-shrink:0;cursor:pointer}
+.annot-check-row.hidden-by-filter{display:none}
+/* ANNOTATION FILTER — dropdown style */
+.annot-filter-bar{background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:8px 10px;margin-bottom:10px}
+.annot-filter-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.annot-filter-row:last-child{margin-bottom:0}
+.annot-filter-label{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;min-width:42px}
+.annot-filter-select{padding:4px 8px;border:1.5px solid #e2e8f0;border-radius:5px;font-size:12px;color:#1e293b;background:#fff;outline:none;cursor:pointer;min-width:130px}
+.annot-filter-select:focus{border-color:#e8640c}
+.annot-filter-count{font-size:11px;color:#94a3b8;margin-left:auto}
+.annot-action-btn{padding:3px 10px;border-radius:5px;border:1px solid #cbd5e1;background:#fff;font-size:11px;font-weight:600;color:#475569;cursor:pointer;white-space:nowrap}
+.annot-action-btn:hover{background:#f1f5f9;color:#1e3a5f}
+/* DEFINE RFI PHASE */
+.define-rfi-wrap{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+.define-rfi-left,.define-rfi-right{display:flex;flex-direction:column;gap:16px}
+.define-section{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:20px}
+.define-section-title{font-size:14px;font-weight:700;color:#1e3a5f;margin-bottom:14px}
+/* Issue lines */
+.issue-row{display:flex;gap:8px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f1f5f9}
+.issue-row:last-child{border-bottom:none}
+.issue-num{background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;padding:3px 7px;border-radius:8px;white-space:nowrap;flex-shrink:0;margin-top:6px}
+.issue-input{flex:1;padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;font-family:inherit;outline:none;resize:none;min-height:38px;line-height:1.4}
+.issue-input:focus{border-color:#e8640c}
+.issue-type-select{width:180px;flex-shrink:0;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:inherit;outline:none;color:#475569}
+.issue-type-select:focus{border-color:#e8640c}
+.issue-remove{color:#94a3b8;cursor:pointer;background:none;border:none;font-size:18px;padding:0 4px;line-height:1;margin-top:4px;flex-shrink:0}
+.issue-remove:hover{color:#ef4444}
+/* Issue match badge on item card */
+.issue-match-badge{font-size:10px;background:#fef3c7;color:#92400e;border:1px solid #fbbf24;border-radius:8px;padding:1px 7px;white-space:nowrap;flex-shrink:0}
+.type-badge{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;color:#fff;white-space:nowrap;flex-shrink:0}
+/* ITEMS WORKSPACE */
+#items-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px}
+#items-header-left{display:flex;align-items:center;gap:12px}
+#combined-banner{background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:8px 14px;font-size:12px;color:#92400e;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+#rfi-items-list{display:flex;flex-direction:column;gap:14px}
+/* ITEM CARD */
+.item-card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;overflow:hidden;border-left-width:4px;border-left-style:solid;border-left-color:#3b82f6}
+.item-card-top{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid #f1f5f9;background:#fafafa;flex-wrap:wrap}
+.drag-handle{color:#cbd5e1;font-size:16px;line-height:1;user-select:none;cursor:default}
+.item-num-badge{background:#1e3a5f;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;flex-shrink:0}
+.item-linked-chip{font-size:11px;color:#64748b;background:#f1f5f9;padding:2px 8px;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.item-card-actions{margin-left:auto;display:flex;gap:4px;align-items:center}
+.btn-icon{background:none;border:none;cursor:pointer;padding:4px 6px;border-radius:4px;color:#94a3b8;font-size:14px;line-height:1;transition:all .15s}
+.btn-icon:hover{background:#f1f5f9;color:#1e3a5f}
+.btn-icon.danger:hover{background:#fee2e2;color:#dc2626}
+.item-card-body{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-label{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px}
+.form-input,.form-select,.form-textarea{width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;color:#1e293b;background:#fff;outline:none;transition:border .15s;font-family:inherit}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:#e8640c;box-shadow:0 0 0 2px rgba(232,100,12,.1)}
+.form-textarea{resize:vertical;min-height:60px;line-height:1.5}
+.source-note-box{background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:6px;padding:8px 10px;font-size:12px;color:#475569;min-height:40px;font-style:italic;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.priority-pills{display:flex;gap:5px;flex-wrap:wrap}
+.priority-pill{padding:4px 11px;border-radius:12px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid;transition:all .15s;user-select:none}
+.priority-pill[data-p=Low]{color:#16a34a;border-color:#86efac;background:#f0fdf4}
+.priority-pill[data-p=Low].active{background:#16a34a;color:#fff;border-color:#16a34a}
+.priority-pill[data-p=Medium]{color:#ca8a04;border-color:#fde68a;background:#fefce8}
+.priority-pill[data-p=Medium].active{background:#ca8a04;color:#fff;border-color:#ca8a04}
+.priority-pill[data-p=High]{color:#ea580c;border-color:#fdba74;background:#fff7ed}
+.priority-pill[data-p=High].active{background:#ea580c;color:#fff;border-color:#ea580c}
+.priority-pill[data-p=Critical]{color:#dc2626;border-color:#fca5a5;background:#fef2f2}
+.priority-pill[data-p=Critical].active{background:#dc2626;color:#fff;border-color:#dc2626}
+.item-src-row{padding:6px 14px;background:#f8fafc;border-top:1px solid #f1f5f9}
+.item-src-toggle{font-size:11px;color:#64748b;cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;border:1px solid #e2e8f0;background:#fff;transition:background .1s}
+.item-src-toggle:hover{background:#f1f5f9}
+.item-src-details{padding:8px 14px;background:#f8fafc;border-top:1px solid #f1f5f9;font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:12px;flex-wrap:wrap;display:none}
+/* COMBINED ITEMS */
+.combined-badge{background:#7c3aed;color:#fff;font-size:9px;font-weight:700;padding:1px 7px;border-radius:8px;white-space:nowrap;flex-shrink:0}
+.sources-panel{background:#f0f4ff;border-top:1px solid #c7d2fe}
+.sources-panel-header{padding:6px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none}
+.sources-panel-header span{font-size:11px;font-weight:700;color:#3730a3}
+.sources-panel-body{padding:0 14px 10px;display:none}
+.sources-panel-body.open{display:block}
+.source-ref-row{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid #e0e7ff;font-size:11px}
+.source-ref-row:last-child{border-bottom:none}
+.source-ref-num{background:#4f46e5;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;flex-shrink:0;margin-top:1px}
+.source-ref-body{flex:1;min-width:0}
+.source-ref-location{color:#6366f1;font-weight:600;margin-bottom:2px}
+.source-ref-note{color:#1e293b;font-style:italic;white-space:pre-wrap;word-break:break-word}
+.source-ref-actions{display:flex;gap:4px;flex-shrink:0}
+.source-ref-btn{font-size:10px;padding:2px 7px;border-radius:4px;border:1px solid #c7d2fe;background:#fff;color:#4f46e5;cursor:pointer;font-weight:600;transition:background .1s}
+.source-ref-btn:hover{background:#e0e7ff}
+.combine-suggestion{background:#fefce8;border:1px solid #fbbf24;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:10px}
+.combine-suggestion strong{color:#78350f}
+.combine-suggestion button{margin-left:auto;flex-shrink:0}
+/* PHASE 3 */
+.rfi-meta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:20px;margin-bottom:20px}
+.rfi-meta-grid .form-group{margin:0}
+.span-2{grid-column:span 2}
+.impact-toggle{display:flex;gap:0}
+.impact-btn{padding:5px 13px;border:1.5px solid #e2e8f0;background:#fff;font-size:12px;font-weight:600;cursor:pointer;color:#64748b;transition:all .15s;line-height:1.4}
+.impact-btn:first-child{border-radius:6px 0 0 6px;border-right:none}
+.impact-btn:last-child{border-radius:0 6px 6px 0;border-left:none}
+.impact-btn.active-yes{background:#dcfce7;color:#16a34a;border-color:#86efac!important}
+.impact-btn.active-tbd{background:#fefce8;color:#ca8a04;border-color:#fde68a!important}
+.impact-btn.active-no{background:#f1f5f9;color:#475569;border-color:#cbd5e1!important}
+#rfi-preview-area{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:20px;margin-bottom:20px}
+#rfi-preview-title{font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+#rfi-textarea{width:100%;font-family:'Courier New',Courier,monospace;font-size:12px;border:1.5px solid #e2e8f0;border-radius:6px;padding:14px;min-height:520px;resize:vertical;line-height:1.6;color:#1e293b;background:#fafafa;outline:none}
+#rfi-textarea:focus{border-color:#e8640c}
+#phase3-actions{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:24px}
+/* SAVED RFIS */
+#saved-rfis-section{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:20px}
+#saved-rfis-section h3{font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:14px}
+.saved-table{width:100%;border-collapse:collapse}
+.saved-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#94a3b8;padding:6px 10px;border-bottom:2px solid #f1f5f9}
+.saved-table td{padding:8px 10px;border-bottom:1px solid #f8fafc;font-size:13px;vertical-align:middle}
+.saved-table tr:last-child td{border-bottom:none}
+.saved-table tr:hover td{background:#f8fafc}
+/* PDF MODAL */
+#pdf-modal{display:none;position:fixed;inset:0;z-index:999;background:#1e293b;align-items:stretch;justify-content:stretch}
+#pdf-modal.open{display:flex}
+#pdf-modal-inner{background:#fff;border-radius:0;width:100%;height:100%;display:flex;flex-direction:column;overflow:hidden}
+#pdf-modal-header{padding:12px 20px;background:#1e3a5f;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:10px}
+#pdf-modal-title{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+#pdf-modal-nav{display:flex;align-items:center;gap:8px;font-size:13px;flex-shrink:0}
+.modal-nav-btn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;transition:background .15s}
+.modal-nav-btn:hover{background:rgba(255,255,255,.22)}
+.modal-close-btn{background:#dc2626;border:none;color:#fff;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;transition:background .15s}
+.modal-close-btn:hover{background:#b91c1c}
+#pdf-modal-toolbar{background:#253f5e;padding:6px 16px;display:flex;align-items:center;gap:6px;flex-shrink:0;border-bottom:1px solid #1a2f47;flex-wrap:wrap}
+.draw-tool-btn{padding:5px 12px;border-radius:5px;border:1.5px solid transparent;background:rgba(255,255,255,.1);color:#cbd5e1;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s}
+.draw-tool-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+.draw-tool-btn.active{background:#f97316;border-color:#f97316;color:#fff}
+.draw-tool-sep{width:1px;height:20px;background:rgba(255,255,255,.15);margin:0 4px}
+#pdf-modal-body{flex:1;overflow:auto;padding:16px;display:flex;justify-content:center;background:#475569}
+#draw-text-popup{position:fixed;background:#fff;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.35);padding:14px;z-index:1100;display:none;width:280px}
+#draw-text-popup h4{font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:8px}
+#draw-text-input{width:100%;padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;outline:none;font-family:inherit;resize:vertical;min-height:60px}
+#draw-text-input:focus{border-color:#f97316}
+#draw-text-popup-actions{display:flex;gap:8px;margin-top:8px;justify-content:flex-end}
+#pdf-canvas-wrap{position:relative;display:inline-block;line-height:0}
+#pdf-canvas{display:block}
+#annot-overlay{position:absolute;top:0;left:0;pointer-events:none;cursor:crosshair}
+#annot-overlay.tool-active{pointer-events:auto}
+/* MANUAL MODAL */
+#manual-modal{display:none;position:fixed;inset:0;z-index:998;background:rgba(15,23,42,.65);align-items:center;justify-content:center}
+#manual-modal.open{display:flex}
+#manual-modal-inner{background:#fff;border-radius:12px;width:580px;max-width:96vw;max-height:92vh;overflow-y:auto;padding:24px;box-shadow:0 16px 48px rgba(0,0,0,.3)}
+#manual-modal-inner h3{font-size:16px;font-weight:700;color:#1e3a5f;margin-bottom:18px}
+.modal-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.modal-form-grid .span-2{grid-column:1/-1}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px}
+/* MISC */
+.empty-state{text-align:center;padding:60px 20px;color:#94a3b8}
+.empty-state p{font-size:15px;margin-bottom:8px}
+.empty-state small{font-size:12px}
+.phase-hidden{display:none!important}
+/* BLUEBEAM IMPORT TAB */
+.import-tabs{display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:20px}
+.import-tab{padding:9px 22px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;color:#64748b;transition:color .15s,border-color .15s}
+.import-tab.active{color:#e8640c;border-bottom-color:#e8640c}
+.import-tab:hover:not(.active){color:#1e3a5f}
+.import-pane{display:none}
+.import-pane.active{display:block}
+.bb-howto{background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:14px 16px;margin-bottom:16px;font-size:12.5px;color:#1e40af;line-height:1.7}
+.bb-howto strong{color:#1e3a5f;display:block;margin-bottom:4px;font-size:13px}
+.bb-howto ol{margin:6px 0 0 18px}
+.bb-howto ol li{margin-bottom:2px}
+.bb-drop-zone{border:2px dashed #93c5fd;border-radius:8px;padding:28px 20px;text-align:center;cursor:pointer;background:#f8fbff;transition:background .15s,border-color .15s;position:relative}
+.bb-drop-zone:hover,.bb-drop-zone.drag-over{background:#eff6ff;border-color:#3b82f6}
+.bb-drop-zone h4{font-size:14px;font-weight:700;color:#1e3a5f;margin-bottom:4px}
+.bb-drop-zone p{font-size:12px;color:#64748b}
+.bb-imported-list{margin-top:14px;display:flex;flex-direction:column;gap:6px}
+.bb-imported-row{background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:10px 14px;display:flex;align-items:center;gap:10px;font-size:13px}
+.bb-imported-row .bb-badge{background:#0284c7;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap}
+.bb-imported-row .bb-count{font-weight:700;color:#1e3a5f}
+.bb-imported-row .bb-name{color:#475569;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bb-imported-row .bb-remove{color:#94a3b8;cursor:pointer;font-size:16px;line-height:1;padding:0 4px}
+.bb-imported-row .bb-remove:hover{color:#ef4444}
+.chevron{transition:transform .2s;display:inline-block}
+.chevron.open{transform:rotate(180deg)}
+hr.divider{border:none;border-top:1px solid #e2e8f0;margin:12px 0}
+.split-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid #e2e8f0}
+.toggle-switch{position:relative;width:36px;height:20px;display:inline-block}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#cbd5e1;border-radius:10px;cursor:pointer;transition:.3s}
+.toggle-slider::before{content:'';position:absolute;width:14px;height:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+.toggle-switch input:checked+.toggle-slider{background:#e8640c}
+.toggle-switch input:checked+.toggle-slider::before{transform:translateX(16px)}
+.add-manual-link{font-size:12px;color:#e8640c;cursor:pointer;text-decoration:underline;padding:6px 16px;display:block;text-align:center}
+.add-manual-link:hover{color:#cf5800}
+/* TOAST */
+#toast-container{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.toast{background:#1e293b;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.3);display:flex;align-items:center;gap:10px;animation:toast-in .2s ease;max-width:340px}
+.toast.toast-ok{border-left:4px solid #22c55e}
+.toast.toast-warn{border-left:4px solid #f59e0b}
+.toast.toast-err{border-left:4px solid #ef4444}
+@keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div id="topbar-left">
+    <div id="topbar-icon">CS</div>
+    <span id="topbar-title">RFI Builder</span>
+    <span id="topbar-sub">CommandScope</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <span style="color:#94b8d9;font-size:12px">Project:</span>
+    <span id="project-name-display">Enter Project Name</span>
+    <input id="project-name-input" type="text" placeholder="Project name...">
+  </div>
+</div>
+
+<!-- PHASE BAR -->
+<div id="phase-bar">
+  <div class="phase-step" onclick="gotoPhase(1)">
+    <div class="phase-pill active" id="pill-1">1 — Define RFI</div>
+  </div>
+  <span class="phase-arrow">&#8250;</span>
+  <div class="phase-step" onclick="gotoPhase(2)">
+    <div class="phase-pill future" id="pill-2">2 — Attach Drawings</div>
+  </div>
+  <span class="phase-arrow">&#8250;</span>
+  <div class="phase-step" onclick="gotoPhase(3)">
+    <div class="phase-pill future" id="pill-3">3 — Review &amp; Build</div>
+  </div>
+  <span class="phase-arrow">&#8250;</span>
+  <div class="phase-step" onclick="gotoPhase(4)">
+    <div class="phase-pill future" id="pill-4">4 — Generate RFI</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+<!-- ===== PHASE 1 ===== -->
+<div id="phase1">
+  <div class="define-rfi-wrap">
+
+    <!-- LEFT: RFI Definition -->
+    <div class="define-rfi-left">
+      <div class="define-section">
+        <h3 class="define-section-title">RFI Information</h3>
+
+        <div class="form-group">
+          <label class="form-label">RFI Title <span style="color:#ef4444">*</span></label>
+          <input class="form-input" id="def-title" placeholder="e.g. Conduit Routing Conflict at Column C4" oninput="validateDefine()">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">RFI Type <span style="color:#ef4444">*</span></label>
+          <select class="form-select" id="def-type" onchange="validateDefine()">
+            <option value="">— Select RFI Type —</option>
+            <optgroup label="Electrical">
+              <option>Conduit Routing Conflict</option>
+              <option>Electrical Panel / Schedule Clarification</option>
+              <option>Equipment Grounding &amp; Bonding Detail</option>
+              <option>Raceway Fill / Conductor Schedule</option>
+              <option>Cable Tray / Ladder Rack Routing</option>
+              <option>Switchgear / Transformer Placement</option>
+              <option>Load Calculation / Ampacity Verification</option>
+              <option>Lighting Layout Clarification</option>
+              <option>Fire Alarm / Life Safety Integration</option>
+              <option>Emergency Power / Generator Tie-In</option>
+              <option>Short Circuit / Coordination Study</option>
+              <option>Power Quality / Harmonic Mitigation</option>
+              <option>Temporary Power &amp; Lighting</option>
+              <option>Motor / Equipment Control Wiring</option>
+              <option>Arc Flash / Protective Device Setting</option>
+            </optgroup>
+            <optgroup label="Underground / Sitework">
+              <option>Underground Conduit / Ductbank Layout</option>
+              <option>Vault / Manhole / Pull Box Location</option>
+              <option>Ductbank Conflict with Civil / Structural</option>
+              <option>Boring / Trench Route Conflict</option>
+              <option>Site Grounding System Detail</option>
+              <option>Underground Depth / Cover Requirement</option>
+              <option>Utility Locates / Existing Underground Conflict</option>
+            </optgroup>
+            <optgroup label="Coordination">
+              <option>Conduit Sleeve / Wall Penetration Detail</option>
+              <option>Equipment Clearance &amp; Access Path</option>
+              <option>Structural Conflict</option>
+              <option>Mechanical / HVAC Coordination</option>
+              <option>Plumbing Coordination</option>
+              <option>Fire Protection Coordination</option>
+            </optgroup>
+            <optgroup label="Contract / Documentation">
+              <option>Drawing Discrepancy</option>
+              <option>Specification Conflict</option>
+              <option>Scope Gap / Missing Detail</option>
+              <option>Material / Equipment Substitution</option>
+              <option>Owner Direction Required</option>
+              <option>Permit / Inspection Requirement</option>
+              <option>Schedule / Sequencing Impact</option>
+              <option>Cost Impact Clarification</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Background / Description</label>
+          <textarea class="form-textarea" id="def-background" rows="3" placeholder="Brief context for this RFI — what is being built, what was found during review..." oninput="saveDefineToMeta()"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Submitted By</label>
+          <input class="form-input" id="def-submitted-by" placeholder="Your name" oninput="saveDefineToMeta()">
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label class="form-label">Discipline</label>
+            <input class="form-input" id="def-discipline" placeholder="e.g. Electrical" oninput="saveDefineToMeta()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Scope Area</label>
+            <input class="form-input" id="def-scope" placeholder="e.g. Building A – Level 2" oninput="saveDefineToMeta()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Issues List -->
+    <div class="define-rfi-right">
+      <div class="define-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h3 class="define-section-title" style="margin:0">Issues Identified</h3>
+          <button class="btn btn-secondary btn-sm" onclick="addIssueLine()">+ Add Issue</button>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-bottom:14px;line-height:1.6">
+          List each specific issue or question before attaching drawings.<br>
+          The system will map uploaded markup callouts to these issues automatically.
+        </p>
+        <div id="issues-list"></div>
+        <div id="issues-empty" style="font-size:12px;color:#94a3b8;padding:16px 0;text-align:center">No issues added yet — click "+ Add Issue" to start.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;margin-top:20px">
+    <button class="btn btn-primary" id="btn-define-next" disabled onclick="gotoPhase(2)">Next: Attach Drawings &#8250;</button>
+  </div>
+</div>
+
+<!-- ===== PHASE 2 ===== -->
+<div id="phase2" class="phase-hidden">
+
+  <!-- Import tabs -->
+  <div class="import-tabs">
+    <div class="import-tab active" id="tab-pdf" onclick="switchImportTab('pdf')">Upload Marked-Up PDFs</div>
+    <div class="import-tab" id="tab-bb" onclick="switchImportTab('bb')">Import from Bluebeam</div>
+  </div>
+
+  <!-- PDF pane -->
+  <div class="import-pane active" id="pane-pdf">
+    <div id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <div id="upload-zone-icon">
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <h3>Drop PDFs here or click to upload</h3>
+      <p>Accepts multiple PDF files &mdash; existing annotations and markup notes are extracted automatically.</p>
+      <input type="file" id="file-input" multiple accept=".pdf" style="display:none">
+    </div>
+    <div id="file-list"></div>
+  </div>
+
+  <!-- Bluebeam pane -->
+  <div class="import-pane" id="pane-bb">
+    <div class="bb-howto">
+      <strong>How to export your markup list from Bluebeam Revu:</strong>
+      <ol>
+        <li>Open your marked-up PDF in Bluebeam Revu.</li>
+        <li>Open the <strong>Markups List</strong> panel (View &rarr; Panels &rarr; Markups List, or press <strong>Alt+L</strong>).</li>
+        <li>Click the <strong>Export</strong> button (grid/table icon) at the top of the Markups List panel.</li>
+        <li>Choose <strong>Export Summary to CSV</strong> &mdash; or choose <strong>Export to XML</strong> for full coordinate data.</li>
+        <li>Save the file, then drop it below.</li>
+      </ol>
+      Both CSV and XML exports are supported. Subject, Comments, Page, Color, and Type fields are mapped automatically.
+    </div>
+
+    <div class="bb-drop-zone" id="bb-drop-zone"
+         onclick="document.getElementById('bb-file-input').click()"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="bbHandleDrop(event)">
+      <h4>Drop Bluebeam CSV or XML export here</h4>
+      <p>or click to select file &mdash; accepts .csv and .xml</p>
+      <input type="file" id="bb-file-input" multiple accept=".csv,.xml" style="display:none" onchange="bbHandleFiles(this.files)">
+    </div>
+
+    <div id="bb-imported-list" class="bb-imported-list"></div>
+  </div>
+
+  <div id="process-summary" style="display:none;margin-top:12px"></div>
+
+  <div style="display:flex;align-items:center;gap:12px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px">
+    <button class="btn btn-secondary" onclick="openManualModal(null)">+ Add Manual Item</button>
+    <button class="btn btn-primary" id="btn-continue" disabled onclick="gotoPhase(3)">Continue to Review &#8250;</button>
+  </div>
+</div>
+
+<!-- ===== PHASE 3 ===== -->
+<div id="phase3" class="phase-hidden">
+  <div id="phase2-wrap">
+
+    <!-- LEFT PANEL -->
+    <div id="left-panel">
+      <div style="font-size:13px;font-weight:700;color:#1e3a5f;padding:2px 0">Source PDFs</div>
+      <div id="source-pdf-list"></div>
+
+      <div class="source-section">
+        <div class="split-toggle-row">
+          <span style="font-size:12px;color:#475569;font-weight:600">Split RFIs by PDF</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="split-toggle" onchange="updateCombinedBanner()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div style="padding:0 16px 14px">
+          <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="gotoPhase(4)">Generate RFI &#8250;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ITEMS AREA -->
+    <div id="items-area">
+      <div id="items-header">
+        <div id="items-header-left">
+          <span id="items-count" style="font-size:15px;font-weight:700;color:#1e3a5f">0 Items</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary" onclick="regroupAllItems()" title="Re-analyze all notes and merge similar items">&#8635; Group Similar</button>
+          <button class="btn btn-secondary" onclick="openManualModal(null)">+ Add Item</button>
+          <button class="btn btn-primary" onclick="gotoPhase(4)">Generate RFI &#8250;</button>
+        </div>
+      </div>
+
+      <div id="combined-banner" style="display:none">
+        <span>&#9432;</span>
+        <span id="combined-banner-text">Combined from multiple PDFs</span>
+      </div>
+
+      <div id="rfi-items-list">
+        <div class="empty-state">
+          <p>No items yet.</p>
+          <small>Upload PDFs or add items manually.</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PHASE 4 ===== -->
+<div id="phase4" class="phase-hidden">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+    <h2 style="font-size:18px;font-weight:700;color:#1e3a5f">Generate RFI Document</h2>
+    <button class="btn btn-secondary" onclick="gotoPhase(3)">&#8592; Back to Review</button>
+  </div>
+
+  <div class="rfi-meta-grid">
+    <div class="form-group">
+      <label class="form-label">RFI Number</label>
+      <input class="form-input" id="rfi-number" value="RFI-001" oninput="saveSession()">
+    </div>
+    <div class="form-group span-2">
+      <label class="form-label">RFI Title</label>
+      <input class="form-input" id="rfi-title" placeholder="Auto-suggested from items..." oninput="saveSession()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Submitted By</label>
+      <input class="form-input" id="rfi-submitted-by" placeholder="Your name" oninput="saveSession()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Submitted Date</label>
+      <input class="form-input" id="rfi-submitted-date" type="date" oninput="saveSession()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Ball in Court / Sent To</label>
+      <input class="form-input" id="rfi-ball-in-court" placeholder="e.g. Architect" oninput="saveSession()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Due Date</label>
+      <input class="form-input" id="rfi-due-date" type="date" oninput="saveSession()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Discipline</label>
+      <input class="form-input" id="rfi-discipline" placeholder="e.g. Electrical" oninput="saveSession()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Scope Area</label>
+      <input class="form-input" id="rfi-scope-area" placeholder="e.g. Panel Room, 3rd Floor" oninput="saveSession()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cost Impact</label>
+      <div class="impact-toggle">
+        <button class="impact-btn" data-val="Yes" onclick="setImpact('cost','Yes',this)">Yes</button>
+        <button class="impact-btn active-tbd" data-val="TBD" onclick="setImpact('cost','TBD',this)">TBD</button>
+        <button class="impact-btn" data-val="No" onclick="setImpact('cost','No',this)">No</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Schedule Impact</label>
+      <div class="impact-toggle">
+        <button class="impact-btn" data-val="Yes" onclick="setImpact('schedule','Yes',this)">Yes</button>
+        <button class="impact-btn active-tbd" data-val="TBD" onclick="setImpact('schedule','TBD',this)">TBD</button>
+        <button class="impact-btn" data-val="No" onclick="setImpact('schedule','No',this)">No</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rfi-preview-area">
+    <div id="rfi-preview-title">
+      <span>RFI Document Preview</span>
+      <button class="btn btn-secondary" onclick="regenerateRFI()" style="font-size:12px;padding:5px 12px">&#8635; Regenerate</button>
+    </div>
+    <textarea id="rfi-textarea" placeholder="Click Regenerate to build the RFI document from your items..."></textarea>
+  </div>
+
+  <div id="phase3-actions">
+    <button class="btn btn-primary" onclick="copyRFI()">&#10003; Copy to Clipboard</button>
+    <button class="btn btn-secondary" onclick="downloadRFI()">&#8595; Download as .txt</button>
+    <button class="btn btn-secondary" onclick="saveRFI()">Save to Session</button>
+    <button class="btn btn-danger" onclick="startNewRFI()">&#10006; Start New RFI</button>
+  </div>
+
+  <div id="saved-rfis-section">
+    <h3>Saved RFIs (This Browser)</h3>
+    <div id="saved-rfis-list">
+      <p style="color:#94a3b8;font-size:13px">No saved RFIs yet.</p>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<!-- PDF VIEWER MODAL -->
+<div id="pdf-modal">
+  <div id="pdf-modal-inner">
+    <div id="pdf-modal-header">
+      <span id="pdf-modal-title" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">PDF Viewer</span>
+      <div id="pdf-modal-nav" style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <button class="modal-nav-btn" onclick="pdfModalPrevPage()">&#8592; Prev</button>
+        <span id="pdf-modal-page-info" style="font-size:12px;color:#cbd5e1;white-space:nowrap">Page 1 of 1</span>
+        <button class="modal-nav-btn" onclick="pdfModalNextPage()">Next &#8594;</button>
+        <button class="modal-close-btn" onclick="closePdfModal()">&#10006; Close</button>
+      </div>
+    </div>
+    <!-- Drawing toolbar -->
+    <div id="pdf-modal-toolbar">
+      <span style="font-size:11px;color:#94a3b8;font-weight:600;white-space:nowrap">ADD MARKUP:</span>
+      <button class="draw-tool-btn" id="dtool-callout" onclick="setDrawTool('callout')" title="Click to set arrow tip, drag to text box">&#9998; Callout</button>
+      <button class="draw-tool-btn" id="dtool-cloud"   onclick="setDrawTool('cloud')"   title="Drag to draw cloud + box area">&#9729; Cloud + Box</button>
+      <div class="draw-tool-sep"></div>
+      <span id="draw-tool-hint" style="font-size:11px;color:#94a3b8">Select a tool to add notes to the PDF</span>
+      <button class="draw-tool-btn" id="dtool-clear" onclick="clearDrawTool()" style="margin-left:auto;display:none">&#10006; Cancel Tool</button>
+    </div>
+    <div id="pdf-modal-body">
+      <div id="pdf-canvas-wrap">
+        <canvas id="pdf-canvas"></canvas>
+        <canvas id="annot-overlay"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Draw text input popup -->
+<div id="draw-text-popup">
+  <h4 id="draw-text-popup-title">Add Note</h4>
+  <textarea id="draw-text-input" placeholder="Type your note or question here..." rows="3"></textarea>
+  <div id="draw-text-popup-actions">
+    <button class="btn btn-secondary btn-sm" onclick="cancelDrawNote()">Cancel</button>
+    <button class="btn btn-primary btn-sm" onclick="saveDrawNote()">Save &amp; Add to List</button>
+  </div>
+</div>
+
+<!-- MANUAL ITEM MODAL -->
+<div id="manual-modal">
+  <div id="manual-modal-inner">
+    <h3>Add Manual RFI Item</h3>
+    <div class="modal-form-grid">
+      <div class="form-group span-2">
+        <label class="form-label">Source Note / Original Observation</label>
+        <textarea class="form-textarea" id="m-source-note" rows="3" placeholder="What was observed or noted..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sheet / Drawing Reference</label>
+        <input class="form-input" id="m-sheet" placeholder="e.g. E-101">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location on Drawing</label>
+        <input class="form-input" id="m-location" placeholder="e.g. Upper right">
+      </div>
+      <div class="form-group span-2">
+        <label class="form-label">Item Type</label>
+        <select class="form-select" id="m-item-type"></select>
+      </div>
+      <div class="form-group span-2">
+        <label class="form-label">What needs to be clarified / provided?</label>
+        <textarea class="form-textarea" id="m-question" rows="3" placeholder="Clear, specific question for the RFI..."></textarea>
+      </div>
+      <div class="form-group span-2">
+        <label class="form-label">Why it's needed</label>
+        <textarea class="form-textarea" id="m-reason" rows="2" placeholder="Reason for the request..."></textarea>
+      </div>
+      <div class="form-group span-2">
+        <label class="form-label">Impact if not answered</label>
+        <input class="form-input" id="m-impact" placeholder="e.g. Cannot complete installation, schedule delay">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Response needed from</label>
+        <input class="form-input" id="m-response-from" placeholder="e.g. Structural Engineer">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Priority</label>
+        <select class="form-select" id="m-priority">
+          <option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Response needed by</label>
+        <input class="form-input" id="m-needed-by" type="date">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Link to PDF (optional)</label>
+        <select class="form-select" id="m-pdf-link"><option value="">— No PDF —</option></select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeManualModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitManualItem()">Add Item</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast-container"></div>
+
+<script>
+// ============================================================
+// PDF.js WORKER
+// ============================================================
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+const ITEM_TYPES = [
+  { name: 'Clarification Request',         color: '#3b82f6' },
+  { name: 'Additional Detail Required',    color: '#6366f1' },
+  { name: 'Full Detail Not Captured',      color: '#8b5cf6' },
+  { name: 'Scope Gap',                     color: '#ef4444' },
+  { name: 'Design Conflict',               color: '#dc2626' },
+  { name: 'Drawing Discrepancy',           color: '#f97316' },
+  { name: 'Spec Conflict',                 color: '#ea580c' },
+  { name: 'Constructability Concern',      color: '#eab308' },
+  { name: 'Coordination Conflict',         color: '#f59e0b' },
+  { name: 'Procurement / Material Impact', color: '#14b8a6' },
+  { name: 'Schedule Impact',               color: '#f43f5e' },
+  { name: 'Cost Impact',                   color: '#22c55e' },
+  { name: 'Owner Direction Required',      color: '#64748b' },
+];
+
+const MEANINGFUL_SUBTYPES = new Set([
+  'Text','FreeText','Highlight','Square','Circle','Ink','Stamp','PolyLine','Polygon','Line'
+]);
+
+const SUBTYPE_LABEL = {
+  Text: 'Sticky Note', FreeText: 'Free Text', Highlight: 'Highlight',
+  Square: 'Rectangle', Circle: 'Circle', Ink: 'Freehand',
+  Stamp: 'Stamp', PolyLine: 'Polyline', Polygon: 'Polygon', Line: 'Line',
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let uploadedPDFs = [];   // { id, name, dataURL, pageCount, jobData, annotations }
+let rfiItems     = [];   // { id, pdfId, pdfName, pageNumber, annotationType, sourceNote, rect, sheetNumber, drawingTitle, locationDescription, itemType, cleanQuestion, reasonNeeded, impactIfNotAnswered, responseFrom, priority, neededBy, isManual }
+let rfiMeta      = { number:'RFI-001', title:'', submittedBy:'', submittedDate: todayStr(), ballInCourt:'', dueDate:'', costImpact:'TBD', scheduleImpact:'TBD', discipline:'', scopeArea:'', rfiType:'', background:'' };
+let rfiIssues    = []; // [{id, text, type}]
+let currentPhase = 1;
+let pdfModal     = { pdfId:null, pageNum:1, pdfDoc:null, totalPages:1, pdfAnnotsByPage:{} };
+let manualTargetPdfId = null;
+
+// ============================================================
+// HELPERS
+// ============================================================
+function todayStr() {
+  return new Date().toISOString().split('T')[0];
+}
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function typeColor(name) {
+  const t = ITEM_TYPES.find(x => x.name === name);
+  return t ? t.color : '#3b82f6';
+}
+function showToast(msg, type='ok') {
+  const wrap = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.transition='opacity .3s'; el.style.opacity='0'; setTimeout(()=>el.remove(), 350); }, 2500);
+}
+
+// ============================================================
+// PROJECT NAME
+// ============================================================
+(function initProjectName() {
+  const disp = document.getElementById('project-name-display');
+  const inp  = document.getElementById('project-name-input');
+  const saved = localStorage.getItem('rfiProject');
+  if (saved) disp.textContent = saved;
+
+  disp.addEventListener('click', () => {
+    disp.style.display = 'none';
+    inp.style.display  = 'inline-block';
+    inp.value = disp.textContent === 'Enter Project Name' ? '' : disp.textContent;
+    inp.focus(); inp.select();
+  });
+
+  function commitName(e) {
+    if (e.type === 'keydown' && e.key !== 'Enter') return;
+    const v = inp.value.trim() || 'Enter Project Name';
+    disp.textContent = v;
+    localStorage.setItem('rfiProject', v);
+    inp.style.display  = 'none';
+    disp.style.display = '';
+  }
+  inp.addEventListener('blur', commitName);
+  inp.addEventListener('keydown', commitName);
+})();
+
+// ============================================================
+// GROUPING ENGINE
+// Groups annotations from the same PDF that are about the same
+// issue into a single combined RFI item with multiple sources.
+// ============================================================
+
+function autoGroupItemsForPDF(pdfId) {
+  // Pull all non-manual items just added for this PDF
+  const candidates = rfiItems.filter(it => it.pdfId === pdfId && !it.isManual && !it.fromBluebeam);
+  if (candidates.length === 0) return 0;
+
+  const used = new Set();
+  const merged = [];
+
+  candidates.forEach(item => {
+    if (used.has(item.id)) return;
+    const group = [item];
+    used.add(item.id);
+
+    candidates.forEach(other => {
+      if (used.has(other.id)) return;
+      if (shouldCombineItems(item, other)) {
+        group.push(other);
+        used.add(other.id);
+      }
+    });
+
+    if (group.length === 1) {
+      merged.push(item);
+    } else {
+      merged.push(buildCombinedItem(group));
+    }
+  });
+
+  // Replace in rfiItems
+  rfiItems = rfiItems.filter(it => !(it.pdfId === pdfId && !it.isManual && !it.fromBluebeam));
+  rfiItems = rfiItems.concat(merged);
+  matchMarkupsToIssues();
+  return merged.length;
+}
+
+function matchMarkupsToIssues() {
+  if (!rfiIssues.length) return;
+  rfiItems.forEach(item => {
+    if (item.matchedIssueId) return; // already matched
+    let best = null, bestScore = 0;
+    rfiIssues.forEach(iss => {
+      const score = keywordSimilarity(
+        normalizeText(item.sourceNote + ' ' + item.cleanQuestion),
+        normalizeText(iss.text)
+      );
+      if (score > bestScore && score > 0.2) { bestScore = score; best = iss; }
+    });
+    if (best) {
+      item.matchedIssueId   = best.id;
+      item.matchedIssueText = best.text;
+      if (!item.itemType || item.itemType === 'Clarification Request') {
+        item.itemType = best.type || item.itemType;
+      }
+    }
+  });
+}
+
+function shouldCombineItems(a, b) {
+  const aNorm = normalizeText(a.sourceNote);
+  const bNorm = normalizeText(b.sourceNote);
+  if (!aNorm || !bNorm) return false;
+
+  // Exact or near-exact match (same note repeated on multiple drawing locations)
+  if (aNorm === bNorm) return true;
+
+  // High keyword overlap — same subject even if wording differs slightly
+  const sim = keywordSimilarity(aNorm, bNorm);
+  if (sim >= 0.55) return true;
+
+  // Very short notes (1–3 words) that are identical — e.g., "Verify", "Confirm", "Missing"
+  const aWords = aNorm.split(/\s+/);
+  const bWords = bNorm.split(/\s+/);
+  if (aWords.length <= 3 && bWords.length <= 3 && aNorm === bNorm) return true;
+
+  return false;
+}
+
+function normalizeText(s) {
+  return (s || '').toLowerCase()
+    .replace(/[^\w\s]/g, ' ')  // strip punctuation
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function keywordSimilarity(a, b) {
+  // Ignore common stop words to compare meaningful content
+  const stop = new Set(['the','a','an','is','are','was','be','to','of','and','or','in','on','at',
+    'for','with','this','that','it','not','do','did','we','us','i','you','need','will','can',
+    'what','which','where','when','how','there','see','check','note','verify','confirm']);
+  const tok = s => s.split(/\s+/).filter(w => w.length > 1 && !stop.has(w));
+  const aT = tok(a);
+  const bT = tok(b);
+  if (!aT.length || !bT.length) return 0;
+  const bSet = new Set(bT);
+  const overlap = aT.filter(w => bSet.has(w)).length;
+  return overlap / Math.max(aT.length, bT.length);
+}
+
+function buildCombinedItem(group) {
+  // Primary item is the first in the group — inherits its type and fields
+  const primary = group[0];
+  const allSources = group.flatMap(it => it.sources || [{
+    pdfId: it.pdfId, pdfName: it.pdfName, page: it.pageNumber,
+    sheetNumber: it.sheetNumber, annotationType: it.annotationType,
+    rect: it.rect, sourceNote: it.sourceNote, location: it.locationDescription,
+  }]);
+
+  // De-duplicate sources by note text
+  const seenNotes = new Set();
+  const uniqueSources = allSources.filter(s => {
+    const key = normalizeText(s.sourceNote);
+    if (seenNotes.has(key)) return false;
+    seenNotes.add(key);
+    return true;
+  });
+
+  // Build a combined question that lists all unique notes
+  const noteLines = uniqueSources.map((s, i) => `[${i + 1}] ${s.sourceNote}`).join('\n');
+
+  // Location summary for the chip label
+  const pages = [...new Set(group.map(it => it.pageNumber))].sort((a,b) => a-b);
+  const pageLabel = pages.length === 1 ? `Pg ${pages[0]}` : `Pgs ${pages[0]}–${pages[pages.length-1]}`;
+
+  return {
+    ...primary,
+    id: uid(),
+    sources: uniqueSources,
+    sourceNote: noteLines,
+    cleanQuestion: noteLines,
+    locationDescription: pageLabel,
+    _combined: true,
+    _sourceCount: uniqueSources.length,
+    _pages: pages,
+  };
+}
+
+// Re-run grouping on demand (called from Phase 2 "Group Similar" button)
+function regroupAllItems() {
+  // Reset any existing combining, then re-run
+  const pdfIds = [...new Set(rfiItems.filter(it => !it.isManual && !it.fromBluebeam).map(it => it.pdfId))];
+  // Flatten combined items back to individual sources first
+  const flat = [];
+  rfiItems.forEach(it => {
+    if (it._combined && it.sources && it.sources.length > 1) {
+      it.sources.forEach(s => {
+        flat.push({
+          id: uid(),
+          pdfId: s.pdfId, pdfName: s.pdfName, pageNumber: s.page,
+          annotationType: s.annotationType, sourceNote: s.sourceNote,
+          rect: s.rect, sheetNumber: s.sheetNumber,
+          drawingTitle: it.drawingTitle, locationDescription: s.location || '',
+          itemType: it.itemType, cleanQuestion: s.sourceNote,
+          reasonNeeded: it.reasonNeeded, impactIfNotAnswered: it.impactIfNotAnswered,
+          responseFrom: it.responseFrom, priority: it.priority, neededBy: it.neededBy,
+          isManual: false, fromBluebeam: it.fromBluebeam || false,
+          sources: [s],
+        });
+      });
+    } else {
+      flat.push(it);
+    }
+  });
+  rfiItems = flat;
+  // Re-run grouping per PDF
+  pdfIds.forEach(pdfId => autoGroupItemsForPDF(pdfId));
+  renderPhase3();
+  saveSession();
+  showToast('Items re-grouped', 'ok');
+}
+
+function splitCombinedItem(itemId) {
+  const item = rfiItems.find(it => it.id === itemId);
+  if (!item || !item.sources || item.sources.length <= 1) return;
+  const idx = rfiItems.indexOf(item);
+  const split = item.sources.map(s => ({
+    id: uid(),
+    pdfId: s.pdfId, pdfName: s.pdfName, pageNumber: s.page,
+    annotationType: s.annotationType, sourceNote: s.sourceNote,
+    rect: s.rect, sheetNumber: s.sheetNumber || item.sheetNumber,
+    drawingTitle: item.drawingTitle, locationDescription: s.location || '',
+    itemType: item.itemType, cleanQuestion: s.sourceNote,
+    reasonNeeded: item.reasonNeeded, impactIfNotAnswered: item.impactIfNotAnswered,
+    responseFrom: item.responseFrom, priority: item.priority, neededBy: item.neededBy,
+    isManual: false, fromBluebeam: item.fromBluebeam || false,
+    sources: [s],
+  }));
+  rfiItems.splice(idx, 1, ...split);
+  renderPhase3();
+  saveSession();
+  showToast(`Split into ${split.length} items`, 'ok');
+}
+
+// ============================================================
+// IMPORT TAB SWITCHING
+// ============================================================
+function switchImportTab(tab) {
+  document.getElementById('tab-pdf').classList.toggle('active', tab === 'pdf');
+  document.getElementById('tab-bb').classList.toggle('active', tab === 'bb');
+  document.getElementById('pane-pdf').classList.toggle('active', tab === 'pdf');
+  document.getElementById('pane-bb').classList.toggle('active', tab === 'bb');
+}
+
+// ============================================================
+// BLUEBEAM IMPORT ENGINE
+// ============================================================
+function bbHandleDrop(e) {
+  e.preventDefault();
+  document.getElementById('bb-drop-zone').classList.remove('drag-over');
+  bbHandleFiles(e.dataTransfer.files);
+}
+
+function bbHandleFiles(files) {
+  Array.from(files).forEach(f => {
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (ext === 'csv') bbParseCSV(f);
+    else if (ext === 'xml') bbParseXML(f);
+    else showToast('Unsupported file type: ' + f.name, 'err');
+  });
+}
+
+// Bluebeam CSV column headers (Revu exports these regardless of language setting):
+// Subject, Label, Comments, Date, Author, Page Label, Page Number, Color, Space, Status, Type
+// (order may vary — we detect by header row)
+function bbParseCSV(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const text = e.target.result;
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      if (lines.length < 2) { showToast('CSV appears empty', 'warn'); return; }
+
+      // Parse header
+      const headers = csvSplitLine(lines[0]).map(h => h.trim().toLowerCase().replace(/\s+/g,'_'));
+      const col = h => headers.indexOf(h);
+
+      const iSubject   = col('subject');
+      const iLabel     = col('label');
+      const iComments  = col('comments');
+      const iDate      = col('date');
+      const iAuthor    = col('author');
+      const iPageLabel = col('page_label');
+      const iPageNum   = col('page_number');
+      const iColor     = col('color');
+      const iSpace     = col('space');
+      const iStatus    = col('status');
+      const iType      = col('type');
+
+      let imported = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const cols = csvSplitLine(lines[i]);
+        if (cols.length < 2) continue;
+
+        const subject  = (cols[iSubject]  || '').trim();
+        const comments = (cols[iComments] || '').trim();
+        const label    = (cols[iLabel]    || '').trim();
+        const pageLabel= (cols[iPageLabel]|| '').trim();
+        const pageNum  = parseInt(cols[iPageNum] || '1', 10) || 1;
+        const color    = (cols[iColor]    || '').trim();
+        const space    = (cols[iSpace]    || '').trim();
+        const bbType   = (cols[iType]     || '').trim();
+        const author   = (cols[iAuthor]   || '').trim();
+
+        const sourceNote = [subject, label, comments].filter(Boolean).join(' — ');
+        if (!sourceNote) continue;
+
+        rfiItems.push({
+          id: uid(),
+          pdfId: 'bb_' + uid(),
+          pdfName: file.name,
+          pageNumber: pageNum,
+          annotationType: bbType || 'Bluebeam Markup',
+          sourceNote,
+          rect: [0,0,0,0],
+          sheetNumber: pageLabel,
+          drawingTitle: space || '',
+          locationDescription: space || '',
+          itemType: bbColorToItemType(color, bbType),
+          cleanQuestion: subject || comments || '',
+          reasonNeeded: '',
+          impactIfNotAnswered: '',
+          responseFrom: '',
+          priority: 'Medium',
+          neededBy: '',
+          isManual: false,
+          fromBluebeam: true,
+          bbAuthor: author,
+        });
+        imported++;
+      }
+
+      bbShowImportedRow(file.name, imported);
+      if (imported > 0) {
+        matchMarkupsToIssues();
+        document.getElementById('btn-continue').disabled = false;
+        updateSummary();
+        saveSession();
+        showToast(`Imported ${imported} items from ${file.name}`, 'ok');
+      } else {
+        showToast('No markup rows found in CSV', 'warn');
+      }
+    } catch(err) {
+      console.error(err);
+      showToast('Error parsing CSV: ' + err.message, 'err');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function bbParseXML(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(e.target.result, 'application/xml');
+      // Bluebeam XML uses <Markup> elements inside <Markups> or <Summary>
+      const markupEls = Array.from(doc.querySelectorAll('Markup'));
+      if (markupEls.length === 0) { showToast('No <Markup> elements found in XML', 'warn'); return; }
+
+      let imported = 0;
+      markupEls.forEach(m => {
+        const subject   = (m.getAttribute('Subject')   || m.getAttribute('subject')   || '').trim();
+        const label     = (m.getAttribute('Label')     || m.getAttribute('label')     || '').trim();
+        const comments  = (m.getAttribute('Comments')  || m.getAttribute('comments')  || '').trim();
+        const pageLabel = (m.getAttribute('PageLabel') || m.getAttribute('page_label')|| '').trim();
+        const pageNum   = parseInt(m.getAttribute('PageNumber') || m.getAttribute('page_number') || '1', 10) || 1;
+        const color     = (m.getAttribute('Color')     || m.getAttribute('color')     || '').trim();
+        const space     = (m.getAttribute('Space')     || m.getAttribute('space')     || '').trim();
+        const bbType    = (m.getAttribute('Type')      || m.getAttribute('type')      || '').trim();
+        const author    = (m.getAttribute('Author')    || m.getAttribute('author')    || '').trim();
+
+        // Rect coordinates from child element or attributes
+        let rect = [0,0,0,0];
+        const rectEl = m.querySelector('Rect') || m.querySelector('rect');
+        if (rectEl) {
+          rect = [
+            parseFloat(rectEl.getAttribute('x1') || rectEl.getAttribute('X1') || 0),
+            parseFloat(rectEl.getAttribute('y1') || rectEl.getAttribute('Y1') || 0),
+            parseFloat(rectEl.getAttribute('x2') || rectEl.getAttribute('X2') || 0),
+            parseFloat(rectEl.getAttribute('y2') || rectEl.getAttribute('Y2') || 0),
+          ];
+        }
+
+        const sourceNote = [subject, label, comments].filter(Boolean).join(' — ');
+        if (!sourceNote) return;
+
+        rfiItems.push({
+          id: uid(),
+          pdfId: 'bb_' + uid(),
+          pdfName: file.name,
+          pageNumber: pageNum,
+          annotationType: bbType || 'Bluebeam Markup',
+          sourceNote,
+          rect,
+          sheetNumber: pageLabel,
+          drawingTitle: space || '',
+          locationDescription: space || '',
+          itemType: bbColorToItemType(color, bbType),
+          cleanQuestion: subject || comments || '',
+          reasonNeeded: '',
+          impactIfNotAnswered: '',
+          responseFrom: '',
+          priority: 'Medium',
+          neededBy: '',
+          isManual: false,
+          fromBluebeam: true,
+          bbAuthor: author,
+        });
+        imported++;
+      });
+
+      bbShowImportedRow(file.name, imported);
+      if (imported > 0) {
+        matchMarkupsToIssues();
+        document.getElementById('btn-continue').disabled = false;
+        updateSummary();
+        saveSession();
+        showToast(`Imported ${imported} items from ${file.name}`, 'ok');
+      } else {
+        showToast('No markup entries found in XML', 'warn');
+      }
+    } catch(err) {
+      console.error(err);
+      showToast('Error parsing XML: ' + err.message, 'err');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Parse a single CSV line respecting quoted fields
+function csvSplitLine(line) {
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (c === ',' && !inQ) {
+      result.push(cur); cur = '';
+    } else {
+      cur += c;
+    }
+  }
+  result.push(cur);
+  return result;
+}
+
+// Map Bluebeam color string / type to an RFI item type
+// Bluebeam color is typically an HTML hex like "#FF0000" or "255,0,0"
+function bbColorToItemType(colorStr, bbType) {
+  const t = (bbType || '').toLowerCase();
+  if (t.includes('cloud')) {
+    // Red/orange clouds often mean conflicts
+    if (/ff0000|e00|f00|red/i.test(colorStr)) return 'Design Conflict';
+    if (/ff8000|ffa500|orange/i.test(colorStr)) return 'Drawing Discrepancy';
+    return 'Clarification Request';
+  }
+  if (t.includes('callout') || t.includes('text') || t.includes('note')) return 'Additional Detail Required';
+  if (t.includes('arrow')) return 'Clarification Request';
+  if (t.includes('stamp')) return 'Owner Direction Required';
+  // Fall back to color
+  if (/ff0000|e00|f00|red/i.test(colorStr)) return 'Design Conflict';
+  if (/ff8000|ffa500|orange/i.test(colorStr)) return 'Drawing Discrepancy';
+  if (/ffff00|yellow/i.test(colorStr)) return 'Clarification Request';
+  if (/00ff00|0f0|green/i.test(colorStr)) return 'Scope Gap';
+  if (/0000ff|00f|blue/i.test(colorStr)) return 'Coordination Conflict';
+  return 'Clarification Request';
+}
+
+function bbShowImportedRow(fileName, count) {
+  const list = document.getElementById('bb-imported-list');
+  const rowId = 'bbr-' + uid();
+  const div = document.createElement('div');
+  div.className = 'bb-imported-row';
+  div.id = rowId;
+  div.innerHTML = `
+    <span class="bb-badge">BLUEBEAM</span>
+    <span class="bb-count">${count} items</span>
+    <span class="bb-name" title="${esc(fileName)}">${esc(fileName)}</span>
+    <span class="bb-remove" title="Remove" onclick="bbRemoveImport('${rowId}','${esc(fileName)}')">&times;</span>`;
+  list.appendChild(div);
+}
+
+function bbRemoveImport(rowId, fileName) {
+  // Remove all rfiItems that came from this file
+  rfiItems = rfiItems.filter(it => !(it.fromBluebeam && it.pdfName === fileName));
+  const row = document.getElementById(rowId);
+  if (row) row.remove();
+  updateSummary();
+  saveSession();
+  if (rfiItems.length === 0 && uploadedPDFs.length === 0) {
+    document.getElementById('btn-continue').disabled = true;
+  }
+  showToast('Removed items from ' + fileName, 'warn');
+}
+
+// ============================================================
+// DEFINE RFI — PHASE 1 LOGIC
+// ============================================================
+function addIssueLine(text, type) {
+  text = text || '';
+  type = type || '';
+  const id = uid();
+  rfiIssues.push({id, text, type});
+  renderIssuesList();
+  validateDefine();
+}
+
+function removeIssue(id) {
+  rfiIssues = rfiIssues.filter(i => i.id !== id);
+  renderIssuesList();
+  validateDefine();
+}
+
+function updateIssueText(id, val) {
+  const issue = rfiIssues.find(i => i.id === id);
+  if (issue) { issue.text = val; validateDefine(); saveDefineToMeta(); }
+}
+
+function updateIssueType(id, val) {
+  const issue = rfiIssues.find(i => i.id === id);
+  if (issue) { issue.type = val; saveDefineToMeta(); }
+}
+
+function renderIssuesList() {
+  const list  = document.getElementById('issues-list');
+  const empty = document.getElementById('issues-empty');
+  if (!list) return;
+  if (rfiIssues.length === 0) {
+    list.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  list.innerHTML = rfiIssues.map((iss, idx) => `
+    <div class="issue-row" id="issue-row-${iss.id}">
+      <span class="issue-num">#${idx+1}</span>
+      <textarea class="issue-input" rows="2"
+        placeholder="Describe the issue or question..."
+        oninput="updateIssueText('${iss.id}',this.value)">${esc(iss.text)}</textarea>
+      <select class="issue-type-select" onchange="updateIssueType('${iss.id}',this.value)">
+        <option value="">— Type —</option>
+        <option ${iss.type==='Clarification Request'?'selected':''}>Clarification Request</option>
+        <option ${iss.type==='Additional Detail Required'?'selected':''}>Additional Detail Required</option>
+        <option ${iss.type==='Scope Gap'?'selected':''}>Scope Gap</option>
+        <option ${iss.type==='Design Conflict'?'selected':''}>Design Conflict</option>
+        <option ${iss.type==='Drawing Discrepancy'?'selected':''}>Drawing Discrepancy</option>
+        <option ${iss.type==='Constructability Concern'?'selected':''}>Constructability Concern</option>
+        <option ${iss.type==='Coordination Conflict'?'selected':''}>Coordination Conflict</option>
+        <option ${iss.type==='Cost Impact'?'selected':''}>Cost Impact</option>
+        <option ${iss.type==='Schedule Impact'?'selected':''}>Schedule Impact</option>
+        <option ${iss.type==='Owner Direction Required'?'selected':''}>Owner Direction Required</option>
+      </select>
+      <button class="issue-remove" onclick="removeIssue('${iss.id}')" title="Remove">&times;</button>
+    </div>`).join('');
+}
+
+function validateDefine() {
+  const title = (document.getElementById('def-title')||{}).value || '';
+  const type  = (document.getElementById('def-type')||{}).value  || '';
+  const btn   = document.getElementById('btn-define-next');
+  if (btn) btn.disabled = !(title.trim() && type);
+  saveDefineToMeta();
+}
+
+function saveDefineToMeta() {
+  rfiMeta.title       = (document.getElementById('def-title')||{}).value || rfiMeta.title || '';
+  rfiMeta.rfiType     = (document.getElementById('def-type')||{}).value  || '';
+  rfiMeta.background  = (document.getElementById('def-background')||{}).value || '';
+  rfiMeta.submittedBy = (document.getElementById('def-submitted-by')||{}).value || rfiMeta.submittedBy || '';
+  rfiMeta.discipline  = (document.getElementById('def-discipline')||{}).value || rfiMeta.discipline || '';
+  rfiMeta.scopeArea   = (document.getElementById('def-scope')||{}).value || rfiMeta.scopeArea || '';
+  saveSession();
+}
+
+// ============================================================
+// PHASE NAVIGATION
+// ============================================================
+function gotoPhase(n) {
+  if (n === 2 && !rfiMeta.title) {
+    showToast('Enter an RFI title and type before continuing.', 'warn');
+    return;
+  }
+  if (n === 3 && uploadedPDFs.length === 0 && rfiItems.length === 0) {
+    showToast('Upload a PDF or add a manual item first.', 'warn');
+    return;
+  }
+  if (n === 4) buildPhase4();
+
+  currentPhase = n;
+  ['phase1','phase2','phase3','phase4'].forEach((id, i) => {
+    document.getElementById(id).classList.toggle('phase-hidden', (i+1) !== n);
+  });
+  [1,2,3,4].forEach(i => {
+    const p = document.getElementById('pill-' + i);
+    if (p) p.className = 'phase-pill ' + (i < n ? 'done' : i === n ? 'active' : 'future');
+  });
+  if (n === 3) renderPhase3();
+  saveSession();
+}
+
+// ============================================================
+// DRAG & DROP
+// ============================================================
+(function initDragDrop() {
+  const zone = document.getElementById('upload-zone');
+  const inp  = document.getElementById('file-input');
+
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const files = [...e.dataTransfer.files].filter(f => f.name.toLowerCase().endsWith('.pdf'));
+    if (files.length) processFiles(files);
+  });
+
+  inp.addEventListener('change', () => {
+    if (inp.files.length) processFiles([...inp.files]);
+    inp.value = '';
+  });
+})();
+
+function processFiles(files) {
+  files.forEach(f => queuePDF(f));
+}
+
+// ============================================================
+// PDF QUEUE & PROCESSING
+// ============================================================
+function queuePDF(file) {
+  const id = uid();
+  const listEl = document.getElementById('file-list');
+  const row = document.createElement('div');
+  row.className = 'file-item';
+  row.id = 'fi-' + id;
+  row.innerHTML = `
+    <div class="file-item-icon">PDF</div>
+    <div class="file-item-info">
+      <div class="file-item-name" title="${esc(file.name)}">${esc(file.name)}</div>
+      <div class="file-item-status" id="fst-${id}">
+        <span class="spinner"></span> Reading file...
+      </div>
+    </div>`;
+  listEl.appendChild(row);
+  runPDFProcessing(file, id);
+}
+
+function setStatus(id, html, spinning) {
+  const el = document.getElementById('fst-' + id);
+  if (!el) return;
+  el.innerHTML = (spinning ? '<span class="spinner"></span> ' : '') + html;
+}
+
+async function runPDFProcessing(file, id) {
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const ab = e.target.result;
+    const dataURL = arrayBufferToDataURL(ab);
+    try {
+      setStatus(id, 'Loading PDF...', true);
+      const loadTask = pdfjsLib.getDocument({ data: ab.slice(0) });
+      const pdf = await loadTask.promise;
+      const numPages = pdf.numPages;
+
+      setStatus(id, 'Extracting job data...', true);
+      // Text from first and last page for title block
+      const textPageSet = new Set([1, numPages]);
+      let allText = [];
+      for (const pn of textPageSet) {
+        const pg = await pdf.getPage(pn);
+        const tc = await pg.getTextContent();
+        tc.items.forEach(it => allText.push({ str: it.str, page: pn }));
+        pg.cleanup();
+      }
+      const jobData = extractJobData(allText);
+
+      setStatus(id, 'Reading annotations...', true);
+      let annotations = [];
+      for (let pn = 1; pn <= numPages; pn++) {
+        const pg = await pdf.getPage(pn);
+        const vp = pg.getViewport({ scale: 1 });
+        // Pass page text to extractAnnotations for spatial text fallback.
+        // This catches callout/cloud text stored in the appearance stream.
+        const annots = await extractAnnotations(pg, pn, vp.width, vp.height);
+        annotations = annotations.concat(annots);
+        pg.cleanup();
+      }
+
+      const pdfObj = { id, name: file.name, dataURL, pageCount: numPages, jobData, annotations };
+      uploadedPDFs.push(pdfObj);
+
+      // Only create items from annotations that carry actual text notes.
+      // Graphical marks (polylines, highlights, circles) with no text content
+      // are useful as visual indicators but are not actionable RFI items on their own.
+      const textAnnotations = annotations.filter(a => (a.contents || '').trim().length > 0);
+
+      textAnnotations.forEach(ann => {
+        rfiItems.push({
+          id: uid(),
+          pdfId: id,
+          pdfName: file.name,
+          pageNumber: ann.page,
+          annotationType: ann.label,
+          sourceNote: ann.contents.trim(),
+          rect: ann.rect || [0, 0, 0, 0],
+          sheetNumber: jobData.sheetNumber || '',
+          drawingTitle: jobData.drawingTitle || '',
+          locationDescription: ann.location || '',
+          itemType: autoSuggestItemType(ann),
+          cleanQuestion: ann.contents.trim(),
+          reasonNeeded: '',
+          impactIfNotAnswered: '',
+          responseFrom: '',
+          priority: 'Medium',
+          neededBy: '',
+          isManual: false,
+          // sources array supports multi-annotation grouping
+          sources: [{
+            pdfId: id, pdfName: file.name, page: ann.page,
+            sheetNumber: jobData.sheetNumber || '',
+            annotationType: ann.label, rect: ann.rect || [0,0,0,0],
+            sourceNote: ann.contents.trim(), location: ann.location || '',
+            color: ann.color || null,
+          }],
+        });
+      });
+
+      // Group like-noted items into single combined items
+      const grouped = autoGroupItemsForPDF(id);
+
+      if (annotations.length > 0) {
+        const noText = annotations.length - textAnnotations.length;
+        setStatus(id, `<span class="status-ok">&#10003; ${annotations.length} annotations &rarr; ${textAnnotations.length} with text &rarr; grouped into ${grouped} item${grouped !== 1 ? 's' : ''}${noText > 0 ? ` (${noText} graphic-only marks skipped)` : ''}</span>`, false);
+      } else {
+        setStatus(id, `<span class="status-warn">&#9888; No annotations found &mdash; add items manually</span>`, false);
+      }
+
+      updateSummary();
+      document.getElementById('btn-continue').disabled = false;
+      saveSession();
+    } catch(err) {
+      console.error(err);
+      setStatus(id, `<span class="status-err">&#10006; Error: ${esc(err.message)}</span>`, false);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function arrayBufferToDataURL(ab) {
+  const bytes = new Uint8Array(ab);
+  let bin = '';
+  const CHUNK = 8192;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return 'data:application/pdf;base64,' + btoa(bin);
+}
+
+// ============================================================
+// ANNOTATION EXTRACTION
+// ============================================================
+
+// Extended subtype set — include everything then let the text filter decide
+const ALL_MARKUP_SUBTYPES = new Set([
+  'Text','FreeText','Highlight','Underline','StrikeOut','Squiggly',
+  'Square','Circle','Ink','Stamp','Polygon','PolyLine','Line',
+  'Caret','FileAttachment','Sound','Popup',
+]);
+
+async function extractAnnotations(page, pageNum, pageW, pageH) {
+  const raw = await page.getAnnotations({ intent: 'display' });
+
+  // Also pull full page text for spatial fallback.
+  // Many callout/cloud annotations store their text in the page appearance
+  // stream rather than the annotation data model — getTextContent catches those.
+  let pageTextItems = [];
+  try {
+    const tc = await page.getTextContent();
+    pageTextItems = tc.items || [];
+  } catch(_) {}
+
+  const results = [];
+
+  for (const a of raw) {
+    if (!ALL_MARKUP_SUBTYPES.has(a.subtype)) continue;
+
+    // ── Try every known field that might carry text ──────────────────────
+    let contents = '';
+    const candidates = [
+      a.contents,
+      a.alternativeText,
+      a.subject,
+      a.title,
+    ];
+    for (const c of candidates) {
+      const t = (c || '').trim();
+      if (t) { contents = t; break; }
+    }
+
+    // richText: PDF.js may return structured rich text for FreeText
+    if (!contents && a.richText) {
+      contents = extractRichText(a.richText);
+    }
+
+    // Popup annotations carry text attached to their parent markup
+    if (!contents && a.subtype === 'Popup' && a.parent) {
+      contents = (a.parent.contents || a.parent.alternativeText || '').trim();
+    }
+
+    // Spatial fallback: find page text whose position falls inside this annotation's
+    // bounding box. Only used for small-ish rects (callout boxes, not clouds over
+    // entire panel schedules). Large rects capture too much drawing content.
+    if (!contents && a.rect && pageTextItems.length) {
+      const rw = Math.abs((a.rect[2] || 0) - (a.rect[0] || 0));
+      const rh = Math.abs((a.rect[3] || 0) - (a.rect[1] || 0));
+      // Skip spatial fallback for rects larger than ~3 inches at 72dpi (216pt each axis)
+      if (rw < 216 && rh < 216) {
+        contents = extractTextInRect(pageTextItems, a.rect);
+      }
+    }
+
+    const label    = SUBTYPE_LABEL[a.subtype] || a.subtype;
+    const rect     = a.rect || [0, 0, 0, 0];
+    const color    = a.color || null;
+    const location = inferLocation(rect, pageW, pageH);
+
+    results.push({ subtype: a.subtype, label, contents, rect, color, page: pageNum, location, raw: a });
+  }
+
+  return results;
+}
+
+function extractRichText(rt) {
+  if (!rt) return '';
+  if (typeof rt === 'string') return rt.replace(/<[^>]+>/g, ' ').replace(/\s+/g,' ').trim();
+  if (Array.isArray(rt))      return rt.map(r => r.str || r.value || '').join(' ').trim();
+  if (rt.str)                 return rt.str.trim();
+  return '';
+}
+
+// Extract text whose bounding position falls within a PDF rect [x1,y1,x2,y2]
+// PDF.js text items have transform[4]=x, transform[5]=y (bottom-left origin)
+function extractTextInRect(textItems, rect) {
+  if (!rect || rect.length < 4 || !textItems.length) return '';
+  const [rx1, ry1, rx2, ry2] = rect;
+  const pad = 4;
+  const found = textItems
+    .filter(item => {
+      if (!item.transform || item.str === undefined) return false;
+      const tx = item.transform[4];
+      const ty = item.transform[5];
+      return tx >= rx1 - pad && tx <= rx2 + pad
+          && ty >= ry1 - pad && ty <= ry2 + pad;
+    })
+    .map(item => item.str.trim())
+    .filter(Boolean);
+
+  if (!found.length) return '';
+
+  // Deduplicate consecutive identical tokens (panel schedules repeat circuit IDs)
+  const deduped = found.filter((s, i) => s !== found[i - 1]);
+
+  // If result looks like drawing content (>8 tokens with high word-repeat rate), discard
+  if (deduped.length > 8) {
+    const freq = {};
+    deduped.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+    const maxRepeat = Math.max(...Object.values(freq));
+    if (maxRepeat >= 3) return ''; // same word repeats 3+ times → drawing content, not a note
+  }
+
+  const result = deduped.join(' ').trim();
+  // Cap at 300 characters — real annotation notes are concise
+  return result.length > 300 ? result.slice(0, 300) + '…' : result;
+}
+
+function inferLocation(rect, pw, ph) {
+  if (!rect || rect.length < 4 || (!pw && !ph)) return '';
+  const cx = (rect[0] + rect[2]) / 2;
+  const cy = (rect[1] + rect[3]) / 2;
+  const xL = cx < pw * 0.33 ? 'Left' : cx < pw * 0.67 ? 'Center' : 'Right';
+  const yL = cy > ph * 0.67 ? 'Upper' : cy > ph * 0.33 ? 'Middle' : 'Lower';
+  return yL + ' ' + xL;
+}
+
+// ============================================================
+// JOB DATA EXTRACTION
+// ============================================================
+function extractJobData(textItems) {
+  const data = { projectName:'', jobNumber:'', drawingTitle:'', sheetNumber:'', revision:'', issueDate:'', discipline:'', scale:'', drawnBy:'' };
+  // Flatten to a single string then split into workable lines
+  const flat = textItems.map(i => i.str || '').join(' ');
+  const lines = flat.split(/\s{3,}|\n|\r/);
+
+  const patterns = [
+    { key: 'projectName',  re: /project(?:\s*name)?[:\-]\s*(.+)/i },
+    { key: 'projectName',  re: /job\s*name[:\-]\s*(.+)/i },
+    { key: 'jobNumber',    re: /(?:job\s*(?:no|#|number)|project\s*(?:no|number)|contract)[:\-]\s*([A-Z0-9\-]+)/i },
+    { key: 'drawingTitle', re: /(?:drawing\s*title|title)[:\-]\s*(.+)/i },
+    { key: 'sheetNumber',  re: /(?:sheet|dwg\s*no|drawing\s*no?)[:\-]\s*([A-Z0-9\-\.]+)/i },
+    { key: 'revision',     re: /rev(?:ision)?[:\-]\s*([A-Z0-9\.]+)/i },
+    { key: 'issueDate',    re: /(?:date|issued)[:\-]\s*(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i },
+    { key: 'scale',        re: /scale[:\-]\s*([^\s]+(?:\s*:\s*\S+)?)/i },
+    { key: 'drawnBy',      re: /(?:drawn\s*by|drn\s*by)[:\-]\s*([A-Z][A-Z\.\s]{1,20})/i },
+  ];
+
+  for (const line of lines) {
+    for (const pat of patterns) {
+      if (!data[pat.key]) {
+        const m = line.match(pat.re);
+        if (m) data[pat.key] = m[1].trim().replace(/\s+/g,' ');
+      }
+    }
+    // Sheet number by common drawing number pattern E-101, A-201 etc.
+    if (!data.sheetNumber) {
+      const m = line.match(/\b([EAMPSFC][P]?-\d{3,}[A-Z]?)\b/);
+      if (m) data.sheetNumber = m[1];
+    }
+  }
+
+  // Infer discipline from sheet prefix
+  if (data.sheetNumber && !data.discipline) {
+    const pm = data.sheetNumber.match(/^([A-Z]+)/);
+    if (pm) data.discipline = disciplineOf(pm[1]);
+  }
+  return data;
+}
+
+function disciplineOf(p) {
+  return { E:'Electrical', A:'Architectural', M:'Mechanical', P:'Plumbing', S:'Structural', C:'Civil', FP:'Fire Protection', FE:'Fire Protection' }[p.toUpperCase()] || p;
+}
+
+// ============================================================
+// AUTO SUGGEST ITEM TYPE
+// ============================================================
+function autoSuggestItemType(ann) {
+  const c = ann.color;
+  if (c && c.length >= 3) {
+    const [r, g, b] = c;
+    if (r > 180 && g < 80  && b < 80)  return 'Design Conflict';
+    if (r > 200 && g > 100 && b < 60)  return 'Drawing Discrepancy';
+    if (r > 180 && g > 170 && b < 60)  return 'Clarification Request';
+    if (b > 150 && r < 100)             return 'Coordination Conflict';
+    if (g > 150 && r < 100)             return 'Constructability Concern';
+  }
+  const st = ann.subtype;
+  if (st === 'Text' || st === 'FreeText') return 'Additional Detail Required';
+  if (st === 'Highlight')                  return 'Clarification Request';
+  if (st === 'Square' || st === 'Circle')  return 'Drawing Discrepancy';
+  if (st === 'Stamp')                      return 'Owner Direction Required';
+  return 'Clarification Request';
+}
+
+// ============================================================
+// SUMMARY
+// ============================================================
+function updateSummary() {
+  const div = document.getElementById('process-summary');
+  const bbItems = rfiItems.filter(it => it.fromBluebeam);
+  const hasAny  = uploadedPDFs.length > 0 || bbItems.length > 0;
+  if (!hasAny) { div.style.display = 'none'; return; }
+  div.style.display = '';
+  const totalAnnot = uploadedPDFs.reduce((s, p) => s + p.annotations.length, 0);
+  const sheets     = [...new Set(uploadedPDFs.map(p => p.jobData.sheetNumber).filter(Boolean))].join(', ') || '—';
+  const proj       = uploadedPDFs.map(p => p.jobData.projectName).find(n => n) || '—';
+  const bbSources  = [...new Set(bbItems.map(it => it.pdfName))];
+  div.innerHTML = `<h3>Import Summary</h3>
+    ${uploadedPDFs.length > 0 ? `
+    <div class="summary-row"><span class="summary-label">PDFs Uploaded</span><span class="summary-val">${uploadedPDFs.length}</span></div>
+    <div class="summary-row"><span class="summary-label">PDF Annotations Found</span><span class="summary-val">${totalAnnot}</span></div>
+    <div class="summary-row"><span class="summary-label">Detected Project</span><span class="summary-val">${esc(proj)}</span></div>
+    <div class="summary-row"><span class="summary-label">Sheet Numbers</span><span class="summary-val">${esc(sheets)}</span></div>` : ''}
+    ${bbItems.length > 0 ? `
+    <div class="summary-row"><span class="summary-label">Bluebeam Files</span><span class="summary-val">${bbSources.length}</span></div>
+    <div class="summary-row"><span class="summary-label">Bluebeam Items</span><span class="summary-val">${bbItems.length}</span></div>` : ''}
+    <div class="summary-row" style="border-top:1px solid #e2e8f0;padding-top:8px;margin-top:4px"><span class="summary-label" style="font-weight:700;color:#1e3a5f">Total RFI Items</span><span class="summary-val" style="font-weight:700;color:#e8640c">${rfiItems.length}</span></div>`;
+}
+
+// ============================================================
+// PHASE 3 RENDER
+// ============================================================
+function renderPhase3() {
+  renderSourcePanel();
+  renderItemsList();
+  updateCombinedBanner();
+}
+
+function renderSourcePanel() {
+  const wrap = document.getElementById('source-pdf-list');
+  wrap.innerHTML = '';
+  const hasAny = uploadedPDFs.length > 0 || rfiItems.some(it => it.fromBluebeam);
+  if (!hasAny) {
+    wrap.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:4px 0">No sources imported yet.</div>';
+    return;
+  }
+
+  // PDF-sourced sections
+  uploadedPDFs.forEach(pdf => {
+    const sec = document.createElement('div');
+    sec.className = 'source-section';
+    const jd = pdf.jobData;
+    const ac = pdf.annotations.length;
+
+    let annotRows = '';
+    pdf.annotations.forEach((ann) => {
+      const item = rfiItems.find(it => it.pdfId === pdf.id && it.pageNumber === ann.page && it.sourceNote === (ann.contents||'') && !it.isManual);
+      const iid = item ? item.id : '';
+      const hasText = (ann.contents||'').trim().length > 0;
+      const annotCssColor = cssColor(ann.color) || '';
+      const preview = hasText ? ann.contents.substring(0, 40) : '(no text)';
+      const previewStyle = hasText ? '' : 'color:#94a3b8;font-style:italic';
+      // Color dot — show the actual annotation color
+      const colorDot = annotCssColor
+        ? `<span style="width:9px;height:9px;border-radius:50%;background:${annotCssColor};flex-shrink:0;border:1px solid rgba(0,0,0,.15);display:inline-block"></span>`
+        : '';
+      annotRows += `<div class="annot-check-row"
+          data-has-text="${hasText ? '1' : '0'}"
+          data-type="${esc(ann.label)}"
+          data-color="${esc(annotCssColor)}">
+        <input type="checkbox" ${iid ? 'checked' : ''} data-iid="${esc(iid)}" onchange="toggleItemFromSrc(this,'${esc(iid)}','${pdf.id}',${JSON.stringify(ann).replace(/'/g,'&#39;')})">
+        <span class="type-badge" style="background:${typeColor(autoSuggestItemType(ann))};font-size:9px">${esc(ann.label)}</span>
+        ${colorDot}
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${previewStyle}" title="${esc(ann.contents||'')}">
+          ${esc(preview)} <span style="color:#94a3b8">— Pg ${ann.page}</span>
+        </span>
+      </div>`;
+    });
+    if (ac === 0) annotRows = '<div style="font-size:12px;color:#94a3b8;padding:4px 0">No annotations found — add items manually.</div>';
+
+    sec.innerHTML = `
+      <div class="source-header" onclick="toggleSrcSection(this)">
+        <span class="source-header-name" title="${esc(pdf.name)}">${esc(pdf.name)}</span>
+        <span class="chevron open">&#8964;</span>
+      </div>
+      <div class="source-body">
+        <div class="job-data-row">Sheet: <span>${esc(jd.sheetNumber||'—')}</span></div>
+        <div class="job-data-row">Title: <span>${esc(jd.drawingTitle||'—')}</span></div>
+        <div class="job-data-row">Discipline: <span>${esc(jd.discipline||'—')}</span></div>
+        <hr class="divider">
+        <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Annotations (${ac})</div>
+        <div id="filter-bar-${pdf.id}"></div>
+        <div id="annot-list-${pdf.id}">${annotRows}</div>
+        <div id="filter-count-${pdf.id}" style="font-size:10px;color:#94a3b8;margin:4px 0 6px;text-align:right"></div>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;margin-top:2px;width:100%;justify-content:center" onclick="openPdfModal('${pdf.id}',1)">View PDF</button>
+        <a class="add-manual-link" onclick="openManualModal('${pdf.id}')">+ Add manual item for this PDF</a>
+      </div>`;
+    wrap.appendChild(sec);
+
+    // Build filter bar after element is in DOM
+    buildAnnotFilterBar(pdf);
+  });
+
+  // Bluebeam-sourced sections (grouped by file name)
+  const bbFiles = [...new Set(rfiItems.filter(it => it.fromBluebeam).map(it => it.pdfName))];
+  bbFiles.forEach(fname => {
+    const items = rfiItems.filter(it => it.fromBluebeam && it.pdfName === fname);
+    const sec = document.createElement('div');
+    sec.className = 'source-section';
+    let rows = '';
+    items.forEach(it => {
+      const preview = (it.sourceNote || '').substring(0, 45);
+      rows += `<div class="annot-check-row">
+        <input type="checkbox" checked onchange="if(!this.checked&&confirm('Remove this item?')){rfiItems=rfiItems.filter(x=>x.id!=='${it.id}');renderPhase3();saveSession();}else{this.checked=true;}">
+        <span class="type-badge" style="background:${typeColor(it.itemType)};font-size:9px">${esc((it.itemType||'').split(' ')[0])}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(it.sourceNote||'')}">${esc(preview)} — Pg ${it.pageNumber}</span>
+      </div>`;
+    });
+    sec.innerHTML = `
+      <div class="source-header" onclick="toggleSrcSection(this)">
+        <span style="background:#0284c7;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;margin-right:5px;flex-shrink:0">BB</span>
+        <span class="source-header-name" title="${esc(fname)}" style="flex:1">${esc(fname)}</span>
+        <span class="chevron open">&#8964;</span>
+      </div>
+      <div class="source-body">
+        <div class="job-data-row">Source: <span>Bluebeam Export</span></div>
+        <div class="job-data-row">Items: <span>${items.length}</span></div>
+        <div class="job-data-row">Sheets: <span>${esc([...new Set(items.map(i=>i.sheetNumber).filter(Boolean))].join(', ')||'—')}</span></div>
+        <hr class="divider">
+        <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">Markups (${items.length})</div>
+        ${rows}
+        <a class="add-manual-link" onclick="openManualModal(null)">+ Add manual item</a>
+      </div>`;
+    wrap.appendChild(sec);
+  });
+}
+
+function toggleSrcSection(header) {
+  const body = header.nextElementSibling;
+  const chev = header.querySelector('.chevron');
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  chev.classList.toggle('open', !isOpen);
+}
+
+function toggleSourcesPanel(header) {
+  const body = header.nextElementSibling;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  const arrow = header.querySelector('span');
+  if (arrow) arrow.innerHTML = arrow.innerHTML.replace(/[▲▼⌄⌃]/g, '').trim() + (isOpen ? ' &#8964;' : ' &#8963;');
+}
+
+function toggleItemFromSrc(cb, iid, pdfId, ann) {
+  if (cb.checked) {
+    // Add item if not already in list
+    if (iid && rfiItems.find(it => it.id === iid)) return; // already exists
+    const pdf = uploadedPDFs.find(p => p.id === pdfId);
+    if (!pdf || !ann) return;
+    const jd = pdf.jobData;
+    const newId = uid();
+    cb.setAttribute('data-iid', newId);
+    rfiItems.push({
+      id: newId,
+      pdfId,
+      pdfName: pdf.name,
+      pageNumber: ann.page,
+      annotationType: ann.label,
+      sourceNote: ann.contents || '',
+      rect: ann.rect || [0,0,0,0],
+      sheetNumber: jd.sheetNumber || '',
+      drawingTitle: jd.drawingTitle || '',
+      locationDescription: ann.location || '',
+      itemType: autoSuggestItemType(ann),
+      cleanQuestion: ann.contents || '',
+      reasonNeeded: '',
+      impactIfNotAnswered: '',
+      responseFrom: '',
+      priority: 'Medium',
+      neededBy: '',
+      isManual: false,
+    });
+    renderItemsList();
+    saveSession();
+  } else {
+    // Remove item
+    const activeIid = cb.getAttribute('data-iid') || iid;
+    if (!activeIid) return;
+    rfiItems = rfiItems.filter(it => it.id !== activeIid);
+    renderItemsList();
+    saveSession();
+  }
+}
+
+// ============================================================
+// ANNOTATION FILTER BAR — dropdown style
+// ============================================================
+// Per-PDF filter state: { textOnly, noTextOnly, typeFilter, colorFilter }
+const annotFilters = {};
+
+function getFilter(pdfId) {
+  if (!annotFilters[pdfId]) annotFilters[pdfId] = { textOnly: false, noTextOnly: false, typeFilter: 'All types', colorFilter: '' };
+  return annotFilters[pdfId];
+}
+
+function buildAnnotFilterBar(pdf) {
+  const bar = document.getElementById('filter-bar-' + pdf.id);
+  if (!bar) return;
+
+  const anns = pdf.annotations;
+  const allTypes  = [...new Set(anns.map(a => a.label))].sort();
+  const allColors = [...new Set(anns.map(a => cssColor(a.color)).filter(Boolean))];
+  const f = getFilter(pdf.id);
+
+  // Type options
+  const typeOptions = ['All types', ...allTypes].map(t =>
+    `<option value="${esc(t)}" ${(f.typeFilter === t) ? 'selected' : ''}>${esc(t)}</option>`
+  ).join('');
+
+  // Color options
+  const colorOptions = ['All colors', ...allColors].map(c => {
+    if (c === 'All colors') return `<option value="">All colors</option>`;
+    return `<option value="${c}" ${f.colorFilter === c ? 'selected' : ''} style="background:${c};color:#fff">${c}</option>`;
+  }).join('');
+
+  bar.innerHTML = `
+    <div class="annot-filter-bar">
+      <div class="annot-filter-row">
+        <span class="annot-filter-label">Show</span>
+        <select class="annot-filter-select" onchange="setAnnotFilter('${pdf.id}','notes',this.value)">
+          <option value="all"    ${!f.textOnly && !f.noTextOnly ? 'selected':''}>All markups</option>
+          <option value="text"   ${f.textOnly  ? 'selected':''}>With notes only</option>
+          <option value="notext" ${f.noTextOnly? 'selected':''}>No notes (graphic only)</option>
+        </select>
+        ${allTypes.length > 1 ? `
+        <select class="annot-filter-select" onchange="setAnnotFilter('${pdf.id}','type',this.value)">
+          ${typeOptions}
+        </select>` : ''}
+        ${allColors.length > 1 ? `
+        <select class="annot-filter-select" onchange="setAnnotFilter('${pdf.id}','color',this.value)">
+          ${colorOptions}
+        </select>` : ''}
+        <span class="annot-filter-count" id="fc-${pdf.id}"></span>
+      </div>
+      <div class="annot-filter-row">
+        <span class="annot-filter-label">Select</span>
+        <button class="annot-action-btn" onclick="selectAllVisible('${pdf.id}')">Check all visible</button>
+        <button class="annot-action-btn" onclick="uncheckAllVisible('${pdf.id}')">Uncheck all</button>
+        <button class="annot-action-btn" onclick="selectTextOnlyVisible('${pdf.id}')">Check notes only</button>
+      </div>
+    </div>`;
+
+  applyAnnotFilter(pdf.id);
+}
+
+function setAnnotFilter(pdfId, field, value) {
+  const f = getFilter(pdfId);
+  if (field === 'notes') {
+    f.textOnly   = value === 'text';
+    f.noTextOnly = value === 'notext';
+  } else if (field === 'type') {
+    f.typeFilter = value;
+  } else if (field === 'color') {
+    f.colorFilter = value;
+  }
+  applyAnnotFilter(pdfId);
+}
+
+function applyAnnotFilter(pdfId) {
+  const f = getFilter(pdfId);
+  const list = document.getElementById('annot-list-' + pdfId);
+  if (!list) return;
+  const rows = list.querySelectorAll('.annot-check-row');
+  let visible = 0;
+
+  rows.forEach(row => {
+    const rowText  = row.getAttribute('data-has-text') === '1';
+    const rowType  = row.getAttribute('data-type') || '';
+    const rowColor = row.getAttribute('data-color') || '';
+
+    let show = true;
+    if (f.textOnly   && !rowText)  show = false;
+    if (f.noTextOnly && rowText)   show = false;
+    if (f.typeFilter && f.typeFilter !== 'All types'  && rowType  !== f.typeFilter)  show = false;
+    if (f.colorFilter && rowColor !== f.colorFilter) show = false;
+
+    row.classList.toggle('hidden-by-filter', !show);
+    if (show) visible++;
+  });
+
+  const fc = document.getElementById('fc-' + pdfId);
+  const total = rows.length;
+  if (fc) {
+    const hidden = total - visible;
+    fc.textContent = hidden > 0 ? `Showing ${visible} of ${total}` : `All ${total} shown`;
+  }
+}
+
+function selectTextOnlyVisible(pdfId) {
+  const list = document.getElementById('annot-list-' + pdfId);
+  if (!list) return;
+  list.querySelectorAll('.annot-check-row:not(.hidden-by-filter)').forEach(row => {
+    const hasText = row.getAttribute('data-has-text') === '1';
+    const cb = row.querySelector('input[type=checkbox]');
+    if (!cb) return;
+    if (hasText && !cb.checked) cb.click();
+    if (!hasText && cb.checked) cb.click();
+  });
+}
+
+function selectAllVisible(pdfId) {
+  const list = document.getElementById('annot-list-' + pdfId);
+  if (!list) return;
+  list.querySelectorAll('.annot-check-row:not(.hidden-by-filter) input[type=checkbox]').forEach(cb => {
+    if (!cb.checked) cb.click();
+  });
+}
+
+function uncheckAllVisible(pdfId) {
+  const list = document.getElementById('annot-list-' + pdfId);
+  if (!list) return;
+  list.querySelectorAll('.annot-check-row:not(.hidden-by-filter) input[type=checkbox]').forEach(cb => {
+    if (cb.checked) cb.click();
+  });
+}
+
+// Convert PDF.js color array [r,g,b] (0-1 floats) to css hex
+function cssColor(colorArr) {
+  if (!colorArr || colorArr.length < 3) return null;
+  const toHex = v => Math.round(v * 255).toString(16).padStart(2,'0');
+  const hex = '#' + toHex(colorArr[0]) + toHex(colorArr[1]) + toHex(colorArr[2]);
+  if (hex === '#000000' || hex === '#ffffff') return null; // skip default colors
+  return hex;
+}
+
+function updateCombinedBanner() {
+  const banner = document.getElementById('combined-banner');
+  const split  = document.getElementById('split-toggle').checked;
+  if (uploadedPDFs.length > 1 && !split) {
+    banner.style.display = 'flex';
+    document.getElementById('combined-banner-text').textContent = `Combined from ${uploadedPDFs.length} PDFs into one RFI`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function renderItemsList() {
+  const wrap = document.getElementById('rfi-items-list');
+  wrap.innerHTML = '';
+  if (rfiItems.length === 0) {
+    wrap.innerHTML = '<div class="empty-state"><p>No items yet.</p><small>Upload PDFs or add items manually.</small></div>';
+  } else {
+    rfiItems.forEach((item, idx) => wrap.appendChild(buildItemCard(item, idx)));
+  }
+  document.getElementById('items-count').textContent = rfiItems.length + ' Item' + (rfiItems.length !== 1 ? 's' : '');
+}
+
+function buildItemCard(item, idx) {
+  const card = document.createElement('div');
+  card.className = 'item-card';
+  card.id = 'ic-' + item.id;
+  card.style.borderLeftColor = typeColor(item.itemType);
+
+  const typeOpts = ITEM_TYPES.map(t =>
+    `<option value="${esc(t.name)}" ${item.itemType === t.name ? 'selected' : ''}>${esc(t.name)}</option>`
+  ).join('');
+
+  const prioHtml = ['Low','Medium','High','Critical'].map(p =>
+    `<div class="priority-pill ${item.priority === p ? 'active' : ''}" data-p="${p}" onclick="setPriority('${item.id}','${p}',this)">${p}</div>`
+  ).join('');
+
+  const isCombined = item._combined && item.sources && item.sources.length > 1;
+  const srcCount = isCombined ? item.sources.length : 1;
+  const pages = isCombined ? item._pages || [] : [item.pageNumber];
+  const pageLabel = pages.length === 1
+    ? `Pg ${pages[0]}`
+    : `Pgs ${pages[0]}–${pages[pages.length-1]}`;
+
+  const shortName = (item.pdfName||'').length > 18
+    ? (item.pdfName||'').substring(0,18)+'…' : (item.pdfName||'');
+  const linkedLabel = item.isManual ? 'Manual Item'
+    : isCombined ? `${srcCount} callouts · ${pageLabel}`
+    : item.pdfName ? `${shortName} ${pageLabel}` : 'Unknown';
+
+  const sourceBadge = item.fromBluebeam
+    ? `<span style="background:#0284c7;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;white-space:nowrap">BLUEBEAM</span>`
+    : item.isManual
+      ? `<span style="background:#64748b;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px">MANUAL</span>`
+      : isCombined
+        ? `<span class="combined-badge">&#9679; ${srcCount} CALLOUTS COMBINED</span>`
+        : '';
+
+  const issueBadge = item.matchedIssueId
+    ? `<span class="issue-match-badge" title="${esc(item.matchedIssueText||'')}">Issue #${rfiIssues.findIndex(i=>i.id===item.matchedIssueId)+1}</span>`
+    : '';
+
+  // Build sources panel HTML
+  const sourcesPanelHtml = (item.sources && item.sources.length > 0) ? `
+    <div class="sources-panel">
+      <div class="sources-panel-header" onclick="toggleSourcesPanel(this)">
+        <span>${isCombined ? `${srcCount} Source Callouts` : 'Source Reference'} &#8964;</span>
+        ${isCombined ? `<button class="source-ref-btn" style="font-size:10px" onclick="event.stopPropagation();splitCombinedItem('${item.id}')">Split into ${srcCount} separate items</button>` : ''}
+      </div>
+      <div class="sources-panel-body">
+        ${(item.sources).map((s, si) => `
+          <div class="source-ref-row">
+            <span class="source-ref-num">${si+1}</span>
+            <div class="source-ref-body">
+              <div class="source-ref-location">${esc(s.pdfName || item.pdfName)} &middot; Pg ${s.page} ${s.sheetNumber ? '· ' + s.sheetNumber : ''} ${s.location ? '· ' + s.location : ''}</div>
+              <div class="source-ref-note">${esc(s.sourceNote || '(no text)')}</div>
+            </div>
+            <div class="source-ref-actions">
+              ${s.pdfId && !item.fromBluebeam ? `<button class="source-ref-btn" onclick="openPdfModal('${s.pdfId}',${s.page})">View</button>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>` : '';
+
+  card.innerHTML = `
+    <div class="item-card-top">
+      <span class="drag-handle" title="Item">&#8942;</span>
+      <span class="item-num-badge">#${idx+1}</span>
+      <span class="type-badge" id="tb-${item.id}" style="background:${typeColor(item.itemType)}">${esc(item.itemType)}</span>
+      ${sourceBadge}
+      ${issueBadge}
+      <span class="item-linked-chip" title="${esc(linkedLabel)}">${esc(linkedLabel)}</span>
+      <div class="item-card-actions">
+        <button class="btn-icon" title="Move Up" onclick="moveItem('${item.id}',-1)">&#9650;</button>
+        <button class="btn-icon" title="Move Down" onclick="moveItem('${item.id}',1)">&#9660;</button>
+        ${(item.pdfId && !item.fromBluebeam && !isCombined) ? `<button class="btn-icon" title="Jump to Source PDF" onclick="openPdfModal('${item.pdfId}',${item.pageNumber})">&#9654;</button>` : ''}
+        <button class="btn-icon danger" title="Remove item" onclick="removeItem('${item.id}')">&#10006;</button>
+      </div>
+    </div>
+    ${sourcesPanelHtml}
+    <div class="item-card-body">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="form-group">
+          <label class="form-label">${isCombined ? `Combined Notes (${srcCount} callouts)` : 'Source Note'}</label>
+          <div class="source-note-box">${esc(item.sourceNote || '(No source note)')}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sheet / Drawing</label>
+          <input class="form-input" value="${esc(item.sheetNumber)}" placeholder="e.g. E-101"
+            oninput="updateItemField('${item.id}','sheetNumber',this.value)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Location on Drawing</label>
+          <input class="form-input" value="${esc(item.locationDescription)}" placeholder="e.g. Upper right quadrant"
+            oninput="updateItemField('${item.id}','locationDescription',this.value)">
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="form-group">
+          <label class="form-label">Item Type</label>
+          <select class="form-select" onchange="updateItemType('${item.id}',this.value)">${typeOpts}</select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Request / Question <span style="color:#e8640c;font-size:10px;font-weight:600;text-transform:none">— write your specific RFI question here</span></label>
+          <textarea class="form-textarea" rows="3" placeholder="e.g. Please confirm the circuit routing for SPP-A-12 and verify if a local contactor is required..."
+            oninput="updateItemField('${item.id}','cleanQuestion',this.value)">${esc(item.cleanQuestion === item.sourceNote ? '' : item.cleanQuestion)}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Why it's needed</label>
+          <textarea class="form-textarea" placeholder="Reason for the request..."
+            oninput="updateItemField('${item.id}','reasonNeeded',this.value)">${esc(item.reasonNeeded)}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Impact if not answered</label>
+          <textarea class="form-textarea" placeholder="e.g. Cannot complete installation, schedule delay, cost impact"
+            oninput="updateItemField('${item.id}','impactIfNotAnswered',this.value)">${esc(item.impactIfNotAnswered)}</textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Response needed from</label>
+          <input class="form-input" value="${esc(item.responseFrom)}" placeholder="e.g. Structural Engineer"
+            oninput="updateItemField('${item.id}','responseFrom',this.value)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Priority</label>
+          <div class="priority-pills">${prioHtml}</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Response needed by</label>
+          <input class="form-input" type="date" value="${esc(item.neededBy)}"
+            oninput="updateItemField('${item.id}','neededBy',this.value)">
+        </div>
+      </div>
+    </div>
+    <div class="item-src-row">
+      <button class="item-src-toggle" onclick="toggleSrcDetails(this)">&#9660; Show source details</button>
+    </div>
+    <div class="item-src-details" id="src-${item.id}">
+      <span>Page ${item.pageNumber} of ${esc(item.pdfName||'—')}</span>
+      <span>Annotation: ${esc(item.annotationType||'Manual')}</span>
+      <span>Rect: [${(item.rect||[0,0,0,0]).map(v=>Math.round(v)).join(', ')}]</span>
+      ${item.pdfId ? `<button class="btn btn-ghost" style="font-size:11px;padding:2px 8px" onclick="openPdfModal('${item.pdfId}',${item.pageNumber})">View in PDF</button>` : ''}
+    </div>`;
+
+  return card;
+}
+
+function toggleSrcDetails(btn) {
+  const row  = btn.closest('.item-src-row');
+  const det  = row.nextElementSibling;
+  const open = det.style.display === 'flex';
+  det.style.display = open ? 'none' : 'flex';
+  btn.innerHTML = open ? '&#9660; Show source details' : '&#9650; Hide source details';
+}
+
+function updateItemField(id, field, val) {
+  const item = rfiItems.find(i => i.id === id);
+  if (item) { item[field] = val; saveSession(); }
+}
+
+function updateItemType(id, val) {
+  const item = rfiItems.find(i => i.id === id);
+  if (!item) return;
+  item.itemType = val;
+  const card = document.getElementById('ic-' + id);
+  if (card) {
+    card.style.borderLeftColor = typeColor(val);
+    const tb = document.getElementById('tb-' + id);
+    if (tb) { tb.style.background = typeColor(val); tb.textContent = val; }
+  }
+  saveSession();
+}
+
+function setPriority(id, p, el) {
+  const item = rfiItems.find(i => i.id === id);
+  if (!item) return;
+  item.priority = p;
+  const card = document.getElementById('ic-' + id);
+  if (card) card.querySelectorAll('.priority-pill').forEach(pp => pp.classList.toggle('active', pp.dataset.p === p));
+  saveSession();
+}
+
+function moveItem(id, dir) {
+  const idx = rfiItems.findIndex(i => i.id === id);
+  if (idx < 0) return;
+  const nidx = idx + dir;
+  if (nidx < 0 || nidx >= rfiItems.length) return;
+  [rfiItems[idx], rfiItems[nidx]] = [rfiItems[nidx], rfiItems[idx]];
+  renderItemsList();
+  saveSession();
+}
+
+function removeItem(id) {
+  rfiItems = rfiItems.filter(i => i.id !== id);
+  renderItemsList();
+  saveSession();
+}
+
+// ============================================================
+// MANUAL ITEM MODAL
+// ============================================================
+(function populateTypeSelect() {
+  const sel = document.getElementById('m-item-type');
+  ITEM_TYPES.forEach(t => {
+    const o = document.createElement('option');
+    o.value = t.name; o.textContent = t.name;
+    sel.appendChild(o);
+  });
+})();
+
+function openManualModal(pdfId) {
+  manualTargetPdfId = pdfId || null;
+  // Populate pdf dropdown
+  const sel = document.getElementById('m-pdf-link');
+  sel.innerHTML = '<option value="">— No PDF —</option>';
+  uploadedPDFs.forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.id; o.textContent = p.name;
+    if (p.id === pdfId) o.selected = true;
+    sel.appendChild(o);
+  });
+  document.getElementById('manual-modal').classList.add('open');
+}
+
+function closeManualModal() {
+  document.getElementById('manual-modal').classList.remove('open');
+  ['m-source-note','m-sheet','m-location','m-question','m-reason','m-impact','m-response-from','m-needed-by'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('m-priority').value = 'Medium';
+}
+
+function submitManualItem() {
+  const pdfId = document.getElementById('m-pdf-link').value;
+  const pdf   = uploadedPDFs.find(p => p.id === pdfId);
+  const sourceNote = document.getElementById('m-source-note').value.trim();
+  const item = {
+    id: uid(),
+    pdfId: pdf ? pdf.id : '',
+    pdfName: pdf ? pdf.name : '',
+    pageNumber: 1,
+    annotationType: 'Manual',
+    sourceNote,
+    rect: [0,0,0,0],
+    sheetNumber: document.getElementById('m-sheet').value.trim(),
+    drawingTitle: pdf ? (pdf.jobData.drawingTitle || '') : '',
+    locationDescription: document.getElementById('m-location').value.trim(),
+    itemType: document.getElementById('m-item-type').value,
+    cleanQuestion: document.getElementById('m-question').value.trim() || sourceNote,
+    reasonNeeded: document.getElementById('m-reason').value.trim(),
+    impactIfNotAnswered: document.getElementById('m-impact').value.trim(),
+    responseFrom: document.getElementById('m-response-from').value.trim(),
+    priority: document.getElementById('m-priority').value,
+    neededBy: document.getElementById('m-needed-by').value,
+    isManual: true,
+  };
+  rfiItems.push(item);
+  closeManualModal();
+  if (currentPhase === 3) renderItemsList();
+  updateSummary();
+  document.getElementById('btn-continue').disabled = false;
+  showToast('Manual item added.', 'ok');
+  saveSession();
+}
+
+// ============================================================
+// PDF VIEWER MODAL
+// ============================================================
+async function openPdfModal(pdfId, pageNum) {
+  const pdf = uploadedPDFs.find(p => p.id === pdfId);
+  if (!pdf) { showToast('PDF not available — was the page refreshed?', 'warn'); return; }
+
+  document.getElementById('pdf-modal-title').textContent = pdf.name;
+  document.getElementById('pdf-modal').classList.add('open');
+
+  pdfModal = { pdfId, pageNum: pageNum || 1, pdfDoc: null, totalPages: pdf.pageCount, pdfAnnotsByPage: {} };
+  pdf.annotations.forEach(ann => {
+    if (!pdfModal.pdfAnnotsByPage[ann.page]) pdfModal.pdfAnnotsByPage[ann.page] = [];
+    pdfModal.pdfAnnotsByPage[ann.page].push(ann);
+  });
+
+  try {
+    // Reconstruct ArrayBuffer from dataURL
+    const b64  = pdf.dataURL.split(',')[1];
+    const bin  = atob(b64);
+    const buf  = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    const task = pdfjsLib.getDocument({ data: buf.buffer });
+    pdfModal.pdfDoc = await task.promise;
+    renderModalPage(pdfModal.pageNum);
+  } catch(err) {
+    showToast('Could not render PDF: ' + err.message, 'err');
+    console.error(err);
+  }
+}
+
+function closePdfModal() {
+  document.getElementById('pdf-modal').classList.remove('open');
+  pdfModal.pdfDoc = null;
+}
+
+function pdfModalPrevPage() {
+  if (pdfModal.pageNum > 1) { pdfModal.pageNum--; renderModalPage(pdfModal.pageNum); }
+}
+function pdfModalNextPage() {
+  if (pdfModal.pageNum < pdfModal.totalPages) { pdfModal.pageNum++; renderModalPage(pdfModal.pageNum); }
+}
+
+async function renderModalPage(pageNum) {
+  if (!pdfModal.pdfDoc) return;
+  document.getElementById('pdf-modal-page-info').textContent = `Page ${pageNum} of ${pdfModal.totalPages}`;
+  const page   = await pdfModal.pdfDoc.getPage(pageNum);
+  const scale  = 1.3;
+  pdfModal.scale = scale;  // expose for drawing tools
+  const vp     = page.getViewport({ scale });
+  const canvas = document.getElementById('pdf-canvas');
+  canvas.width  = vp.width;
+  canvas.height = vp.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+  page.cleanup();
+  renderAnnotOverlay(vp, pdfModal.pdfAnnotsByPage[pageNum] || [], pageNum, scale);
+}
+
+function renderAnnotOverlay(vp, annots, pageNum, scale) {
+  const overlay = document.getElementById('annot-overlay');
+  overlay.width  = vp.width;
+  overlay.height = vp.height;
+  overlay.style.width  = vp.width  + 'px';
+  overlay.style.height = vp.height + 'px';
+  const ctx = overlay.getContext('2d');
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+
+  // Number lookup: annotations with text get their item number
+  const itemNums = {};
+  rfiItems.forEach((item, idx) => {
+    if (item.pageNumber === pageNum && item.pdfId === pdfModal.pdfId) {
+      const k = (item.sourceNote || '').trim();
+      if (k && itemNums[k] === undefined) itemNums[k] = idx + 1;
+    }
+  });
+
+  annots.forEach((ann, i) => {
+    const r = ann.rect;
+    if (!r || r.length < 4) return;
+
+    // Convert PDF bottom-left coords to canvas top-left coords
+    const x1 = r[0] * scale;
+    const y1 = vp.height - r[3] * scale;
+    const x2 = r[2] * scale;
+    const y2 = vp.height - r[1] * scale;
+    const w  = x2 - x1;
+    const h  = y2 - y1;
+
+    // Annotation color — use actual color if available, else orange accent
+    const clr = ann.color && ann.color.length >= 3
+      ? `rgb(${Math.round(ann.color[0]*255)},${Math.round(ann.color[1]*255)},${Math.round(ann.color[2]*255)})`
+      : (ann.color && ann.color[0] !== undefined
+          ? `rgb(${ann.color[0]},${ann.color[1]},${ann.color[2]})`
+          : '#e8640c');
+    const hasNote = (ann.contents || '').trim().length > 0;
+
+    ctx.save();
+
+    if (!hasNote) {
+      // Annotations with no text: draw a tiny dot at the annotation center only.
+      // Don't draw the full shape — large no-text clouds over drawings look like vandalism.
+      const cx = x1 + w / 2;
+      const cy = y1 + h / 2;
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = clr;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.restore();
+      return;
+    }
+
+    // Annotation HAS a note — draw full shape
+    if (ann.subtype === 'FreeText') {
+      drawCalloutBox(ctx, x1, y1, w, h, clr, ann.contents || '', scale);
+    } else if (ann.subtype === 'Polygon' || ann.subtype === 'PolyLine') {
+      drawCloudRect(ctx, x1, y1, w, h, clr, 2.5);
+    } else if (ann.subtype === 'Highlight') {
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle   = clr;
+      ctx.fillRect(x1, y1, w, h);
+      ctx.globalAlpha = 1;
+    } else if (ann.subtype === 'Text') {
+      drawStickyPin(ctx, x1, y1, clr);
+    } else {
+      ctx.strokeStyle = clr;
+      ctx.lineWidth   = 2.5;
+      ctx.setLineDash([]);
+      ctx.strokeRect(x1, y1, w, h);
+      ctx.globalAlpha = 0.08;
+      ctx.fillStyle   = clr;
+      ctx.fillRect(x1, y1, w, h);
+      ctx.globalAlpha = 1;
+    }
+
+    // Number badge — only for annotations that became RFI items
+    const noteKey = (ann.contents || '').trim();
+    if (itemNums[noteKey] !== undefined) {
+      drawItemBadge(ctx, x1, y1, itemNums[noteKey], clr);
+    }
+
+    ctx.restore();
+  });
+
+  // Draw any user-added session markups for this page
+  const sessionAnns = sessionMarkups.filter(m => m.pdfId === pdfModal.pdfId && m.page === pageNum);
+  sessionAnns.forEach((m, si) => {
+    ctx.save();
+    if (m.tool === 'callout') {
+      drawCalloutArrow(ctx, m.ax * scale, vp.height - m.ay * scale,
+                            m.bx * scale, vp.height - m.by * scale,
+                            m.w  * scale, m.h  * scale, '#f97316', m.note);
+    } else if (m.tool === 'cloud') {
+      drawCloudRect(ctx, m.x * scale, vp.height - (m.y + m.h) * scale,
+                        m.w * scale, m.h * scale, '#f97316', 2.5);
+      if (m.note) drawBoxText(ctx, m.x * scale, vp.height - (m.y + m.h) * scale, m.w * scale, m.h * scale, m.note);
+    }
+    const idxAll = rfiItems.findIndex(it => it.id === m.itemId);
+    if (idxAll >= 0) drawItemBadge(ctx, m.x * scale, vp.height - (m.y + m.h) * scale, idxAll + 1, '#f97316');
+    ctx.restore();
+  });
+}
+
+// ── Shape drawing helpers ─────────────────────────────────────────────────
+
+function drawCalloutBox(ctx, x, y, w, h, color, text, scale) {
+  // Filled rectangle with colored border
+  ctx.fillStyle   = 'rgba(255,255,255,0.88)';
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.roundRect ? ctx.roundRect(x, y, w, h, 4) : ctx.rect(x, y, w, h);
+  ctx.fill();
+  ctx.stroke();
+  // Text inside (truncated)
+  if (text) {
+    ctx.fillStyle = '#1e293b';
+    ctx.font = `${Math.max(9, Math.min(12, h / 3))}px sans-serif`;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    const maxW = w - 8;
+    const lines = wrapText(ctx, text, maxW);
+    lines.slice(0, Math.floor(h / 14)).forEach((line, li) => {
+      ctx.fillText(line, x + 4, y + 4 + li * 13, maxW);
+    });
+  }
+}
+
+function drawCalloutArrow(ctx, ax, ay, bx, by, bw, bh, color, text) {
+  // Arrow from tip (ax,ay) to text box corner
+  ctx.strokeStyle = color;
+  ctx.fillStyle   = color;
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  ctx.lineTo(bx, by + bh / 2);
+  ctx.stroke();
+  // Arrowhead at tip
+  drawArrowHead(ctx, bx, by + bh / 2, ax, ay, color);
+  // Text box
+  ctx.fillStyle   = 'rgba(255,247,237,0.92)';
+  ctx.strokeStyle = color;
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.rect(bx, by, bw, bh);
+  ctx.fill();
+  ctx.stroke();
+  if (text) {
+    ctx.fillStyle = '#1e293b';
+    ctx.font = '11px sans-serif';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    wrapText(ctx, text, bw - 8).slice(0, 3).forEach((line, li) => {
+      ctx.fillText(line, bx + 4, by + 4 + li * 13, bw - 8);
+    });
+  }
+}
+
+function drawArrowHead(ctx, fromX, fromY, toX, toY, color) {
+  const angle = Math.atan2(toY - fromY, toX - fromX);
+  const len = 10;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(toX, toY);
+  ctx.lineTo(toX - len * Math.cos(angle - 0.4), toY - len * Math.sin(angle - 0.4));
+  ctx.lineTo(toX - len * Math.cos(angle + 0.4), toY - len * Math.sin(angle + 0.4));
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawCloudRect(ctx, x, y, w, h, color, lineWidth) {
+  // Draw a rectangle with scalloped/cloud border
+  ctx.strokeStyle = color;
+  ctx.fillStyle   = color.replace('rgb(', 'rgba(').replace(')', ',0.08)').replace('#', '').length === 7
+    ? hexToRgba(color, 0.08) : 'rgba(249,115,22,0.08)';
+  ctx.lineWidth   = lineWidth || 2;
+
+  const bump = Math.min(10, w / 6, h / 6);
+  ctx.beginPath();
+  // Top edge — left to right
+  cloudEdge(ctx, x, y, x + w, y, bump, 'h');
+  // Right edge — top to bottom
+  cloudEdge(ctx, x + w, y, x + w, y + h, bump, 'v');
+  // Bottom edge — right to left
+  cloudEdge(ctx, x + w, y + h, x, y + h, bump, 'h');
+  // Left edge — bottom to top
+  cloudEdge(ctx, x, y + h, x, y, bump, 'v');
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+}
+
+function cloudEdge(ctx, x1, y1, x2, y2, bump, dir) {
+  const dist = Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+  const steps = Math.max(2, Math.round(dist / (bump * 2)));
+  for (let i = 0; i < steps; i++) {
+    const t1 = i / steps;
+    const t2 = (i + 1) / steps;
+    const mx = (x1 + (x2-x1) * (t1+t2)/2);
+    const my = (y1 + (y2-y1) * (t1+t2)/2);
+    const cx1 = x1 + (x2-x1)*t1;
+    const cy1 = y1 + (y2-y1)*t1;
+    const cx2 = x1 + (x2-x1)*t2;
+    const cy2 = y1 + (y2-y1)*t2;
+    if (i === 0) ctx.moveTo(cx1, cy1);
+    // Perpendicular offset for the bump
+    const nx = dir === 'h' ? 0 : -(cy2-cy1)/Math.abs(cy2-cy1||1);
+    const ny = dir === 'v' ? 0 : -(cx2-cx1)/Math.abs(cx2-cx1||1);
+    const sign = (dir === 'h') ? -1 : (x2 > x1 ? 1 : -1);
+    ctx.arcTo(mx + nx*bump*sign*0.5, my + ny*bump*sign, cx2, cy2, bump);
+  }
+}
+
+function drawBoxText(ctx, x, y, w, h, text) {
+  ctx.fillStyle = '#1e293b';
+  ctx.font = '11px sans-serif';
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  wrapText(ctx, text, w - 8).slice(0, 3).forEach((line, li) => {
+    ctx.fillText(line, x + 4, y + 4 + li * 13, w - 8);
+  });
+}
+
+function drawStickyPin(ctx, x, y, color) {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(x + 7, y + 7, 7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 9px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('N', x + 7, y + 7);
+}
+
+function drawItemBadge(ctx, x, y, num, color) {
+  const bx = x + 12, by = y + 12;
+  ctx.beginPath();
+  ctx.arc(bx, by, 11, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(num), bx, by);
+}
+
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    const test = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(test).width > maxWidth && cur) {
+      lines.push(cur);
+      cur = w;
+    } else {
+      cur = test;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3), 16);
+  const g = parseInt(hex.slice(3,5), 16);
+  const b = parseInt(hex.slice(5,7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ============================================================
+// PDF VIEWER DRAWING TOOLS (Callout + Cloud+Box)
+// ============================================================
+
+let sessionMarkups = [];   // markups the PM draws in this session
+let drawState = { tool: null, drawing: false, ax:0, ay:0, bx:0, by:0, pendingMark: null };
+
+function setDrawTool(tool) {
+  drawState.tool = drawState.tool === tool ? null : tool;
+  document.querySelectorAll('.draw-tool-btn[id^="dtool-"]').forEach(b => b.classList.remove('active'));
+  const overlay = document.getElementById('annot-overlay');
+  if (drawState.tool) {
+    document.getElementById('dtool-' + tool).classList.add('active');
+    document.getElementById('dtool-clear').style.display = '';
+    overlay.classList.add('tool-active');
+    overlay.style.cursor = 'crosshair';
+    const hints = { callout: 'Click to set arrow tip, then drag to position the text box', cloud: 'Drag to define the cloud area' };
+    document.getElementById('draw-tool-hint').textContent = hints[tool] || '';
+  } else {
+    clearDrawTool();
+  }
+}
+
+function clearDrawTool() {
+  drawState.tool = null;
+  drawState.drawing = false;
+  document.querySelectorAll('.draw-tool-btn[id^="dtool-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('dtool-clear').style.display = 'none';
+  document.getElementById('draw-tool-hint').textContent = 'Select a tool to add notes to the PDF';
+  const overlay = document.getElementById('annot-overlay');
+  overlay.classList.remove('tool-active');
+  overlay.style.cursor = '';
+}
+
+// Wire up mouse events on the overlay canvas
+(function wireDrawEvents() {
+  const overlay = document.getElementById('annot-overlay');
+  if (!overlay) return;
+
+  let startX, startY;
+
+  overlay.addEventListener('mousedown', e => {
+    if (!drawState.tool) return;
+    e.preventDefault();
+    const rect = overlay.getBoundingClientRect();
+    startX = e.clientX - rect.left;
+    startY = e.clientY - rect.top;
+    drawState.drawing = true;
+    drawState.ax = startX;
+    drawState.ay = startY;
+  });
+
+  overlay.addEventListener('mousemove', e => {
+    if (!drawState.drawing || !drawState.tool) return;
+    const rect = overlay.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    // Live preview
+    const vp = { width: overlay.width, height: overlay.height };
+    renderModalPage(pdfModal.pageNum); // redraw clean
+    const ctx = overlay.getContext('2d');
+    ctx.save();
+    ctx.setLineDash([4, 3]);
+    if (drawState.tool === 'callout') {
+      const bw = Math.max(80, Math.abs(mx - startX)), bh = Math.max(40, Math.abs(my - startY));
+      const bx = mx > startX ? mx : mx - bw;
+      const by = my > startY ? my : my - bh;
+      ctx.strokeStyle = '#f97316'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(bx + bw/2, by + bh/2); ctx.stroke();
+      ctx.strokeRect(bx, by, bw, bh);
+    } else if (drawState.tool === 'cloud') {
+      const bx = Math.min(startX, mx), by = Math.min(startY, my);
+      const bw = Math.abs(mx - startX), bh = Math.abs(my - startY);
+      ctx.strokeStyle = '#f97316'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(bx, by, bw, bh);
+    }
+    ctx.restore();
+  });
+
+  overlay.addEventListener('mouseup', e => {
+    if (!drawState.drawing || !drawState.tool) return;
+    e.preventDefault();
+    drawState.drawing = false;
+    const rect = overlay.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const scale = pdfModal.scale || 1.5;
+    const vph   = overlay.height;
+
+    if (drawState.tool === 'callout') {
+      const bw = Math.max(80, Math.abs(mx - startX));
+      const bh = Math.max(40, Math.abs(my - startY));
+      const bx = mx > startX ? mx : mx - bw;
+      const by = my > startY ? my : my - bh;
+      drawState.pendingMark = {
+        tool: 'callout',
+        // Store in PDF coords (un-scaled, y flipped)
+        ax: startX / scale, ay: (vph - startY) / scale,
+        bx: bx / scale, by: (vph - (by + bh)) / scale,
+        bw: bw / scale, bh: bh / scale,
+        x: bx / scale, y: (vph - (by + bh)) / scale,
+        w: bw / scale, h: bh / scale,
+      };
+    } else if (drawState.tool === 'cloud') {
+      const bx = Math.min(startX, mx);
+      const by = Math.min(startY, my);
+      const bw = Math.max(30, Math.abs(mx - startX));
+      const bh = Math.max(20, Math.abs(my - startY));
+      drawState.pendingMark = {
+        tool: 'cloud',
+        x: bx / scale, y: (vph - (by + bh)) / scale,
+        w: bw / scale, h: bh / scale,
+        ax: bx / scale, ay: (vph - by) / scale,
+      };
+    }
+
+    if (drawState.pendingMark) openDrawTextPopup(e.clientX, e.clientY);
+  });
+})();
+
+function openDrawTextPopup(cx, cy) {
+  const popup = document.getElementById('draw-text-popup');
+  const titles = { callout: 'Callout Note', cloud: 'Cloud Note' };
+  document.getElementById('draw-text-popup-title').textContent = titles[drawState.tool] || 'Add Note';
+  document.getElementById('draw-text-input').value = '';
+  popup.style.display = 'block';
+  // Position near cursor but keep on screen
+  const pw = 280, ph = 160;
+  let left = cx + 10, top = cy + 10;
+  if (left + pw > window.innerWidth)  left = cx - pw - 10;
+  if (top  + ph > window.innerHeight) top  = cy - ph - 10;
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+  setTimeout(() => document.getElementById('draw-text-input').focus(), 50);
+}
+
+function cancelDrawNote() {
+  document.getElementById('draw-text-popup').style.display = 'none';
+  drawState.pendingMark = null;
+  renderModalPage(pdfModal.pageNum);
+}
+
+function saveDrawNote() {
+  const note = document.getElementById('draw-text-input').value.trim();
+  document.getElementById('draw-text-popup').style.display = 'none';
+  if (!note || !drawState.pendingMark) { drawState.pendingMark = null; return; }
+
+  const mark = drawState.pendingMark;
+  mark.note  = note;
+  mark.pdfId = pdfModal.pdfId;
+  mark.page  = pdfModal.pageNum;
+  mark.id    = uid();
+
+  const pdf = uploadedPDFs.find(p => p.id === pdfModal.pdfId);
+  const jd  = pdf ? pdf.jobData : {};
+
+  // Create RFI item from this drawn markup
+  const itemId = uid();
+  mark.itemId  = itemId;
+  sessionMarkups.push(mark);
+
+  rfiItems.push({
+    id: itemId,
+    pdfId: mark.pdfId, pdfName: pdf ? pdf.name : '',
+    pageNumber: mark.page,
+    annotationType: mark.tool === 'callout' ? 'Callout' : 'Cloud',
+    sourceNote: note, cleanQuestion: note,
+    rect: [mark.x, mark.y, mark.x + mark.w, mark.y + mark.h],
+    sheetNumber: jd.sheetNumber || '', drawingTitle: jd.drawingTitle || '',
+    locationDescription: inferLocation([mark.x, mark.y, mark.x+mark.w, mark.y+mark.h],
+                                        pdf ? 612 : 0, pdf ? 792 : 0),
+    itemType: 'Clarification Request',
+    reasonNeeded: '', impactIfNotAnswered: '', responseFrom: '',
+    priority: 'Medium', neededBy: '', isManual: false,
+    sources: [{
+      pdfId: mark.pdfId, pdfName: pdf ? pdf.name : '',
+      page: mark.page, sheetNumber: jd.sheetNumber || '',
+      annotationType: mark.tool === 'callout' ? 'Callout' : 'Cloud',
+      rect: [mark.x, mark.y, mark.x+mark.w, mark.y+mark.h],
+      sourceNote: note, location: '',
+    }],
+    drawnInSession: true,
+  });
+
+  drawState.pendingMark = null;
+  saveSession();
+  renderModalPage(pdfModal.pageNum);
+  showToast(`${mark.tool === 'callout' ? 'Callout' : 'Cloud'} note added as RFI item`, 'ok');
+}
+
+// ============================================================
+// PHASE 4 BUILD
+// ============================================================
+function buildPhase4() {
+  const today = todayStr();
+  document.getElementById('rfi-submitted-date').value = rfiMeta.submittedDate || today;
+  document.getElementById('rfi-number').value         = rfiMeta.number || 'RFI-001';
+  document.getElementById('rfi-submitted-by').value   = rfiMeta.submittedBy || '';
+  document.getElementById('rfi-ball-in-court').value  = rfiMeta.ballInCourt || '';
+  document.getElementById('rfi-due-date').value       = rfiMeta.dueDate || '';
+  document.getElementById('rfi-scope-area').value     = rfiMeta.scopeArea || '';
+
+  const disc = rfiMeta.discipline || uploadedPDFs.map(p => p.jobData.discipline).find(d => d) || '';
+  document.getElementById('rfi-discipline').value = disc;
+
+  const title = rfiMeta.title || autoSuggestRFITitle(rfiItems, uploadedPDFs);
+  document.getElementById('rfi-title').value = title;
+
+  // Reset impact toggles
+  setImpactDisplay('cost',     rfiMeta.costImpact     || 'TBD');
+  setImpactDisplay('schedule', rfiMeta.scheduleImpact || 'TBD');
+
+  renderSavedRFIs();
+  document.getElementById('rfi-textarea').dataset.edited = '0';
+  setTimeout(() => regenerateRFI(), 80);
+}
+
+function setImpactDisplay(type, val) {
+  const containerId = type === 'cost' ? 'rfi-meta-grid' : 'rfi-meta-grid';
+  // Use the inline onclick handlers; just update rfiMeta
+  if (type === 'cost') rfiMeta.costImpact = val;
+  else rfiMeta.scheduleImpact = val;
+  // Update button classes
+  const buttons = document.querySelectorAll(`.impact-toggle`);
+  buttons.forEach(toggle => {
+    const isThis = toggle.previousElementSibling && toggle.previousElementSibling.textContent.includes(type === 'cost' ? 'Cost' : 'Schedule');
+    if (!isThis) return;
+    toggle.querySelectorAll('.impact-btn').forEach(b => {
+      b.className = 'impact-btn' + (b.dataset.val === val ? ` active-${val.toLowerCase()}` : '');
+    });
+  });
+}
+
+function setImpact(type, val, btn) {
+  if (type === 'cost') rfiMeta.costImpact = val;
+  else rfiMeta.scheduleImpact = val;
+  btn.parentElement.querySelectorAll('.impact-btn').forEach(b => {
+    b.className = 'impact-btn' + (b.dataset.val === val ? ` active-${val.toLowerCase()}` : '');
+  });
+}
+
+function autoSuggestRFITitle(items, pdfs) {
+  const disc   = pdfs.map(p => p.jobData.discipline).find(d => d) || '';
+  const sheets = [...new Set(pdfs.map(p => p.jobData.sheetNumber).filter(Boolean))];
+  const ftype  = items.length ? items[0].itemType : '';
+  let title = '';
+  if (disc)   title += disc + ' ';
+  if (sheets.length) title += 'Details – ' + sheets.join(', ') + ' – ';
+  if (ftype)  title += ftype;
+  return title.trim() || 'RFI Document';
+}
+
+function collectMeta() {
+  return {
+    number:        document.getElementById('rfi-number').value.trim()        || 'RFI-001',
+    title:         document.getElementById('rfi-title').value.trim(),
+    submittedBy:   document.getElementById('rfi-submitted-by').value.trim(),
+    submittedDate: document.getElementById('rfi-submitted-date').value,
+    ballInCourt:   document.getElementById('rfi-ball-in-court').value.trim(),
+    dueDate:       document.getElementById('rfi-due-date').value,
+    costImpact:    rfiMeta.costImpact     || 'TBD',
+    scheduleImpact:rfiMeta.scheduleImpact || 'TBD',
+    discipline:    document.getElementById('rfi-discipline').value.trim(),
+    scopeArea:     document.getElementById('rfi-scope-area').value.trim(),
+  };
+}
+
+function regenerateRFI() {
+  const ta = document.getElementById('rfi-textarea');
+  if (ta.dataset.edited === '1') {
+    if (!confirm('Regenerate will overwrite your edits. Continue?')) return;
+  }
+  const meta = collectMeta();
+  Object.assign(rfiMeta, meta);
+  ta.value = generateRFIText(meta, rfiItems, uploadedPDFs);
+  ta.dataset.edited = '0';
+  ta.addEventListener('input', () => { ta.dataset.edited = '1'; }, { once: true });
+  saveSession();
+}
+
+function generateRFIText(meta, items, pdfs) {
+  const LINE = '────────────────────────────────────────────────────────────────────';
+  const projName = pdfs.map(p => p.jobData.projectName).find(n => n)
+                   || localStorage.getItem('rfiProject') || '[Project Name]';
+
+  function pad(s, n) { return String(s || '').padEnd(n); }
+
+  let out = '';
+  out += `RFI ${meta.number} – ${meta.title || '[Title]'}\n\n`;
+  out += `Project:        ${pad(projName, 36)} Date:                  ${meta.submittedDate || '[Date]'}\n`;
+  out += `Submitted By:   ${pad(meta.submittedBy || '[Name]', 36)} Priority:              ${highestPriority(items)}\n`;
+  out += `Sent To:        ${pad(meta.ballInCourt || '[Recipient]', 36)} Response Needed By:    ${meta.dueDate || '[Due Date]'}\n`;
+  out += `Discipline:     ${pad(meta.discipline || '[Discipline]', 36)} Scope Area:            ${meta.scopeArea || '[Scope Area]'}\n\n`;
+  out += LINE + '\n\n';
+  out += `BACKGROUND:\n`;
+  out += `During our review of the project drawings and documents listed below, the following items were identified\n`;
+  out += `requiring clarification, additional information, or direction from the design team or owner.\n\n`;
+  out += LINE + '\n';
+
+  items.forEach((item, idx) => {
+    const isCombined = item._combined && item.sources && item.sources.length > 1;
+    out += `\nItem ${idx + 1} – ${item.itemType.toUpperCase()}\n`;
+
+    if (isCombined) {
+      // List every callout as a sub-reference
+      out += `Combined from ${item.sources.length} marked callouts:\n`;
+      item.sources.forEach((s, si) => {
+        out += `  [${si+1}] ${s.pdfName || item.pdfName}  |  Sheet: ${s.sheetNumber || '—'}  |  Page: ${s.page}  |  ${s.location || '—'}\n`;
+        if (s.sourceNote) out += `       Note: "${s.sourceNote}"\n`;
+      });
+      out += `\n`;
+    } else {
+      out += `Drawing Reference: ${item.sheetNumber || '—'}`;
+      if (item.drawingTitle) out += `    Title: ${item.drawingTitle}`;
+      out += `\n`;
+      out += `Page: ${item.pageNumber || '—'}    Source: ${item.pdfName || 'Manual Entry'}\n`;
+      out += `Marked Location: ${item.locationDescription || '—'}\n\n`;
+      if (item.sourceNote) out += `Original Note:\n  ${item.sourceNote.replace(/\n/g,'\n  ')}\n\n`;
+    }
+
+    // Only print Request if it's a user-written question distinct from the raw source note
+    const reqText = (item.cleanQuestion || '').trim();
+    const noteText = (item.sourceNote || '').trim();
+    const reqIsDistinct = reqText && reqText !== noteText && reqText.length < noteText.length * 1.1;
+    out += `Request:\n  ${reqIsDistinct ? reqText.replace(/\n/g,'\n  ') : 'Please clarify — add your specific question in the Review & Build step.'}\n`;
+    out += `Reason:\n  ${(item.reasonNeeded || 'See above').replace(/\n/g,'\n  ')}\n`;
+    out += `Impact if Not Addressed:\n  ${(item.impactIfNotAnswered || '—').replace(/\n/g,'\n  ')}\n`;
+    out += `Response Requested From: ${item.responseFrom || '—'}\n`;
+    out += `Priority: ${item.priority || 'Medium'}\n`;
+    if (item.neededBy) out += `Response Needed By: ${item.neededBy}\n`;
+    out += LINE + '\n';
+  });
+
+  out += `\nIMPACT SUMMARY:\n`;
+  out += `Cost Impact:     ${meta.costImpact || 'TBD'}\n`;
+  out += `Schedule Impact: ${meta.scheduleImpact || 'TBD'}\n`;
+  out += `Please advise at your earliest convenience whether your response impacts scope, cost, schedule, procurement,\nor field installation.\n\n`;
+
+  out += `SOURCE DOCUMENTS:\n`;
+  pdfs.forEach(p => {
+    out += `  • ${p.name}`;
+    if (p.jobData.sheetNumber) out += ` — Sheet: ${p.jobData.sheetNumber}`;
+    if (p.jobData.drawingTitle) out += ` — ${p.jobData.drawingTitle}`;
+    out += `\n`;
+  });
+  // Bluebeam-sourced files
+  const bbFiles = [...new Set(items.filter(it => it.fromBluebeam).map(it => it.pdfName))];
+  bbFiles.forEach(fname => {
+    const bbItems = items.filter(it => it.fromBluebeam && it.pdfName === fname);
+    const sheets = [...new Set(bbItems.map(it => it.sheetNumber).filter(Boolean))].join(', ');
+    out += `  • ${fname} [Bluebeam Markup Export]`;
+    if (sheets) out += ` — Sheets: ${sheets}`;
+    out += `\n`;
+  });
+
+  out += `\nATTACHMENTS:\n`;
+  out += `  • Marked-up PDF drawings (attached)\n`;
+  if (bbFiles.length > 0) out += `  • Bluebeam markup export files (attached)\n`;
+  out += `  • See source documents listed above\n`;
+
+  return out;
+}
+
+function highestPriority(items) {
+  for (const p of ['Critical','High','Medium','Low']) {
+    if (items.some(i => i.priority === p)) return p;
+  }
+  return 'Medium';
+}
+
+// ============================================================
+// PHASE 3 ACTIONS
+// ============================================================
+function copyRFI() {
+  const text = document.getElementById('rfi-textarea').value;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!', 'ok'))
+      .catch(() => legacyCopy(text));
+  } else {
+    legacyCopy(text);
+  }
+}
+
+function legacyCopy(text) {
+  const ta = document.getElementById('rfi-textarea');
+  ta.select();
+  document.execCommand('copy');
+  showToast('Copied to clipboard!', 'ok');
+}
+
+function downloadRFI() {
+  const meta = collectMeta();
+  const text = document.getElementById('rfi-textarea').value;
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = (meta.number || 'RFI') + '.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Downloaded!', 'ok');
+}
+
+function saveRFI() {
+  const meta = collectMeta();
+  const text = document.getElementById('rfi-textarea').value;
+  const entry = {
+    id: uid(),
+    number: meta.number,
+    title: meta.title,
+    date: meta.submittedDate || todayStr(),
+    itemCount: rfiItems.length,
+    text,
+    meta: { ...meta },
+    items: rfiItems.map(i => ({ ...i })),
+    pdfs: uploadedPDFs.map(p => ({ ...p })),
+  };
+
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem('savedRFIs') || '[]'); } catch(e) {}
+
+  const existIdx = saved.findIndex(s => s.number === meta.number);
+  if (existIdx >= 0) {
+    if (!confirm(`An RFI "${meta.number}" is already saved. Overwrite?`)) return;
+    saved[existIdx] = entry;
+  } else {
+    saved.push(entry);
+  }
+
+  try {
+    localStorage.setItem('savedRFIs', JSON.stringify(saved));
+    showToast('Saved to browser!', 'ok');
+    renderSavedRFIs();
+  } catch(e) {
+    showToast('Save failed — storage may be full.', 'err');
+  }
+}
+
+function renderSavedRFIs() {
+  const wrap = document.getElementById('saved-rfis-list');
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem('savedRFIs') || '[]'); } catch(e) {}
+  if (saved.length === 0) {
+    wrap.innerHTML = '<p style="color:#94a3b8;font-size:13px">No saved RFIs yet.</p>';
+    return;
+  }
+  let html = `<table class="saved-table"><thead><tr>
+    <th>RFI #</th><th>Title</th><th>Date</th><th>Items</th><th>Actions</th>
+  </tr></thead><tbody>`;
+  saved.forEach(s => {
+    html += `<tr>
+      <td><strong>${esc(s.number||'—')}</strong></td>
+      <td>${esc(s.title||'—')}</td>
+      <td>${esc(s.date||'—')}</td>
+      <td style="text-align:center">${s.itemCount||0}</td>
+      <td>
+        <button class="btn btn-secondary" style="font-size:11px;padding:3px 9px;margin-right:4px" onclick="loadSavedRFI('${s.id}')">Load</button>
+        <button class="btn btn-danger" style="font-size:11px;padding:3px 9px" onclick="deleteSavedRFI('${s.id}')">Delete</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function loadSavedRFI(id) {
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem('savedRFIs') || '[]'); } catch(e) {}
+  const entry = saved.find(s => s.id === id);
+  if (!entry) { showToast('Entry not found.', 'err'); return; }
+  if (!confirm('Load this saved RFI? Current work will be replaced.')) return;
+
+  uploadedPDFs = (entry.pdfs || []).map(p => ({ ...p }));
+  rfiItems     = (entry.items || []).map(i => ({ ...i }));
+  rfiMeta      = { ...entry.meta };
+
+  const ta = document.getElementById('rfi-textarea');
+  ta.value = entry.text || '';
+  ta.dataset.edited = '1';
+
+  buildPhase4();
+  gotoPhase(4);
+  showToast('RFI loaded.', 'ok');
+}
+
+function deleteSavedRFI(id) {
+  if (!confirm('Delete this saved RFI?')) return;
+  let saved = [];
+  try { saved = JSON.parse(localStorage.getItem('savedRFIs') || '[]'); } catch(e) {}
+  saved = saved.filter(s => s.id !== id);
+  localStorage.setItem('savedRFIs', JSON.stringify(saved));
+  renderSavedRFIs();
+  showToast('Deleted.', 'ok');
+}
+
+function startNewRFI() {
+  if (!confirm('Start a new RFI? All current work will be cleared.')) return;
+  uploadedPDFs = [];
+  rfiItems     = [];
+  rfiIssues    = [];
+  rfiMeta      = { number:'RFI-001', title:'', submittedBy:'', submittedDate: todayStr(), ballInCourt:'', dueDate:'', costImpact:'TBD', scheduleImpact:'TBD', discipline:'', scopeArea:'', rfiType:'', background:'' };
+  document.getElementById('file-list').innerHTML          = '';
+  document.getElementById('process-summary').style.display = 'none';
+  document.getElementById('btn-continue').disabled        = true;
+  document.getElementById('rfi-textarea').value           = '';
+  document.getElementById('rfi-textarea').dataset.edited  = '0';
+  // Reset Phase 1 define fields
+  ['def-title','def-type','def-background','def-submitted-by','def-discipline','def-scope'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  validateDefine();
+  // Re-seed one starter issue
+  addIssueLine();
+  try { sessionStorage.removeItem('rfiSession'); } catch(e) {}
+  gotoPhase(1);
+  showToast('New RFI started.', 'ok');
+}
+
+// ============================================================
+// SESSION PERSISTENCE
+// ============================================================
+function saveSession() {
+  try {
+    sessionStorage.setItem('rfiSession', JSON.stringify({
+      uploadedPDFs: uploadedPDFs.map(p => ({ ...p })),
+      rfiItems:     rfiItems.map(i => ({ ...i })),
+      rfiMeta:      { ...rfiMeta },
+      rfiIssues:    rfiIssues.map(i => ({ ...i })),
+      currentPhase,
+    }));
+  } catch(e) { /* storage full */ }
+}
+
+function restoreSession() {
+  try {
+    const raw = sessionStorage.getItem('rfiSession');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+
+    // Restore issues
+    if (data.rfiIssues && data.rfiIssues.length) {
+      rfiIssues = data.rfiIssues;
+      renderIssuesList();
+    }
+
+    // Restore meta and pre-populate Phase 1 define fields
+    if (data.rfiMeta) {
+      rfiMeta = data.rfiMeta;
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val; };
+      setVal('def-title',        rfiMeta.title);
+      setVal('def-type',         rfiMeta.rfiType);
+      setVal('def-background',   rfiMeta.background);
+      setVal('def-submitted-by', rfiMeta.submittedBy);
+      setVal('def-discipline',   rfiMeta.discipline);
+      setVal('def-scope',        rfiMeta.scopeArea);
+      validateDefine();
+    }
+
+    if (data.uploadedPDFs && data.uploadedPDFs.length) {
+      uploadedPDFs = data.uploadedPDFs;
+      rfiItems     = data.rfiItems || [];
+
+      // Rebuild file list UI
+      const listEl = document.getElementById('file-list');
+      uploadedPDFs.forEach(pdf => {
+        const row = document.createElement('div');
+        row.className = 'file-item';
+        row.id = 'fi-' + pdf.id;
+        row.innerHTML = `
+          <div class="file-item-icon">PDF</div>
+          <div class="file-item-info">
+            <div class="file-item-name" title="${esc(pdf.name)}">${esc(pdf.name)}</div>
+            <div class="file-item-status" id="fst-${pdf.id}">
+              <span class="status-ok">&#10003; Restored from session &mdash; ${pdf.annotations.length} annotation${pdf.annotations.length!==1?'s':''}</span>
+            </div>
+          </div>`;
+        listEl.appendChild(row);
+      });
+      updateSummary();
+      document.getElementById('btn-continue').disabled = false;
+    } else if (data.rfiItems && data.rfiItems.length) {
+      // BB-only items (no PDFs) still need to be restored
+      rfiItems = data.rfiItems;
+      updateSummary();
+      document.getElementById('btn-continue').disabled = false;
+    }
+
+    const phase = data.currentPhase || 1;
+    if (phase > 1) gotoPhase(phase);
+  } catch(e) { console.warn('Session restore error:', e); }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  restoreSession();
+  // Seed one starter issue so the PM sees the pattern immediately
+  if (rfiIssues.length === 0) addIssueLine();
+  renderSavedRFIs();
+
+  // Close modals on backdrop click
+  document.getElementById('pdf-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('pdf-modal')) closePdfModal();
+  });
+  document.getElementById('manual-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('manual-modal')) closeManualModal();
+  });
+
+  // Escape key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closePdfModal(); closeManualModal(); }
+  });
+});
+</script>
+</body>
+</html>

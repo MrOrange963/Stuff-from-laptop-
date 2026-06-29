@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CommandScope — Project Cost Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- SheetJS for Excel import -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- PapaParse for CSV import -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+<body>
+
+<div id="app">
+
+    <!-- ── Left Sidebar ───────────────────────────────────────────────────── -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <img src="img/projectpulse-logo.png" alt="CommandScope" class="sidebar-logo">
+        </div>
+
+        <div class="sidebar-section-label">Main</div>
+        <nav class="sidebar-nav">
+            <button class="nav-btn active" data-view="dashboard">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
+                Dashboard
+            </button>
+            <button class="nav-btn" data-view="comparisons">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1 12h2V6H1v6zm4 2h2V4H5v10zm4-5h2V7H9v2zm4-3h2V2h-2v4z"/></svg>
+                Comparisons
+            </button>
+            <button class="nav-btn" data-view="review">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M14 2H2a1 1 0 00-1 1v10a1 1 0 001 1h12a1 1 0 001-1V3a1 1 0 00-1-1zm-1 10H3V4h10v8zM4 7h8v1H4zm0 2h5v1H4z"/></svg>
+                Review &amp; Classify
+            </button>
+        </nav>
+
+        <div class="sidebar-section-label">Data</div>
+        <nav class="sidebar-nav">
+            <button class="nav-btn" data-view="import">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1v8m0 0l-3-3m3 3l3-3M2 11v2a1 1 0 001 1h10a1 1 0 001-1v-2"/></svg>
+                Import Data
+            </button>
+            <button class="nav-btn" data-view="settings">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 10a2 2 0 100-4 2 2 0 000 4zm6.32-1.4l.77-.44a1 1 0 000-1.32l-.77-.44a6 6 0 00-.37-.65l.13-.89a1 1 0 00-.76-1.14l-.88-.2a5.9 5.9 0 00-.62-.36l-.3-.85A1 1 0 009.57 2h-.88a1 1 0 00-.95.71l-.3.85a6 6 0 00-.62.36l-.88.2A1 1 0 005.18 5.26l.13.89a6 6 0 00-.37.65l-.77.44a1 1 0 000 1.32l.77.44a6 6 0 00.37.65l-.13.89a1 1 0 00.76 1.14l.88.2a5.9 5.9 0 00.62.36l.3.85A1 1 0 008.69 14h.88a1 1 0 00.95-.71l.3-.85a6 6 0 00.62-.36l.88-.2a1 1 0 00.76-1.14l-.13-.89a6 6 0 00.37-.65z"/></svg>
+                Settings
+            </button>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-project-badge" id="sidebar-project-badge">No Project</div>
+        </div>
+    </aside>
+
+    <!-- ── Workspace ──────────────────────────────────────────────────────── -->
+    <div class="workspace">
+
+    <!-- ── Role Bar ───────────────────────────────────────────────────────── -->
+    <div class="role-bar" id="role-bar">
+        <span class="role-bar-label">Viewing as:</span>
+        <select class="role-bar-select" id="session-role-select">
+            <option value="">Select your role…</option>
+        </select>
+        <span class="role-bar-sep">|</span>
+        <select class="role-bar-select" id="session-member-select">
+            <option value="">Select team member…</option>
+        </select>
+        <span class="role-bar-pill" id="role-bar-pill"></span>
+    </div>
+
+    <main id="app-main">
+
+        <!-- ── Dashboard ─────────────────────────────────────────────────── -->
+        <section id="view-dashboard" class="view active">
+            <div class="dash-header">
+                <h1 id="dash-project-name">No Project Loaded</h1>
+                <p id="dash-project-meta">Go to Settings to configure project info</p>
+            </div>
+
+            <div id="dash-cards" class="stat-grid">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="dash-bottom">
+                <div class="dash-section">
+                    <h3>Alerts</h3>
+                    <div id="dash-alerts"></div>
+                </div>
+                <div class="dash-section">
+                    <h3>Spend Item Status</h3>
+                    <div id="dash-spend-summary" class="badge-row" style="margin-bottom:16px;"></div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+                        <button class="btn btn-outline btn-sm" onclick="Router.show('review')">Review Spend Items</button>
+                        <button class="btn btn-outline btn-sm" onclick="Router.show('import')">Import Data</button>
+                        <button class="btn btn-outline btn-sm" onclick="Router.show('comparisons')">View Comparisons</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Import Data ────────────────────────────────────────────────── -->
+        <section id="view-import" class="view">
+            <aside id="import-sidebar">
+                <!-- Populated by ImportModule.init() -->
+            </aside>
+            <div class="import-content-area" id="import-content">
+                <div class="import-placeholder">
+                    <svg viewBox="0 0 48 48" fill="none" width="56" height="56">
+                        <rect x="8" y="4" width="32" height="40" rx="4" fill="#e2e8f0"/>
+                        <rect x="14" y="14" width="20" height="2" rx="1" fill="#94a3b8"/>
+                        <rect x="14" y="20" width="16" height="2" rx="1" fill="#94a3b8"/>
+                        <rect x="14" y="26" width="12" height="2" rx="1" fill="#94a3b8"/>
+                    </svg>
+                    <h3>Select an import type</h3>
+                    <p style="color:var(--text-muted); font-size:0.875rem;">Choose a data type from the left sidebar to begin importing.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Review & Classify ─────────────────────────────────────────── -->
+        <section id="view-review" class="view">
+            <div class="review-toolbar">
+                <label style="font-size:0.78rem; font-weight:600; color:var(--text-muted);">STATUS</label>
+                <select id="filter-status">
+                    <option value="all">All Statuses</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                </select>
+
+                <label style="font-size:0.78rem; font-weight:600; color:var(--text-muted);">CONFIDENCE</label>
+                <select id="filter-confidence">
+                    <option value="all">All Confidence</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                </select>
+
+                <label style="font-size:0.78rem; font-weight:600; color:var(--text-muted);">CATEGORY</label>
+                <select id="filter-category">
+                    <option value="all">All Categories</option>
+                    <!-- Populated by JS -->
+                </select>
+
+                <input type="text" id="filter-search" placeholder="Search description, vendor, ID…">
+
+                <button class="btn btn-success btn-sm" id="btn-approve-all-low">
+                    ✓ Auto-Approve High Confidence
+                </button>
+                <button class="btn btn-outline btn-sm" id="btn-export-spend">
+                    Export CSV
+                </button>
+                <span class="review-count" id="review-count">0 items</span>
+            </div>
+
+            <div class="review-table-wrap">
+                <div class="table-scroll">
+                    <table id="review-table" class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Spend ID</th>
+                                <th>Date</th>
+                                <th>Source</th>
+                                <th>Vendor / Employee</th>
+                                <th>Description</th>
+                                <th class="text-right">Amount</th>
+                                <th>Category</th>
+                                <th>SOV Line</th>
+                                <th>Work Package</th>
+                                <th>Confidence</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="12" class="empty-state">No spend items imported yet. Go to Import Data to get started.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Comparisons ────────────────────────────────────────────────── -->
+        <section id="view-comparisons" class="view">
+            <nav class="comp-nav">
+                <button class="comp-tab active" data-comp="sov">SOV Cost Summary</button>
+                <button class="comp-tab" data-comp="workpackage">Work Package Summary</button>
+                <button class="comp-tab" data-comp="material">Material</button>
+                <button class="comp-tab" data-comp="tools">Tools</button>
+                <button class="comp-tab" data-comp="equipment">Equipment</button>
+                <button class="comp-tab" data-comp="labor">Labor</button>
+                <button class="comp-tab" data-comp="leadership">Field Leadership</button>
+            </nav>
+            <div id="comparison-content">
+                <p class="empty-state">Select a comparison tab above.</p>
+            </div>
+        </section>
+
+        <!-- ── Settings ───────────────────────────────────────────────────── -->
+        <section id="view-settings" class="view">
+            <div class="settings-section">
+                <h2>Project Information</h2>
+                <form id="settings-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Project Name</label>
+                            <input type="text" id="settings-name" placeholder="e.g. Warehouse Electrical">
+                        </div>
+                        <div class="form-group">
+                            <label>Project Number</label>
+                            <input type="text" id="settings-number" placeholder="e.g. 2024-042">
+                        </div>
+                        <div class="form-group">
+                            <label>Client</label>
+                            <input type="text" id="settings-client" placeholder="Client name">
+                        </div>
+                        <div class="form-group">
+                            <label>Project Manager</label>
+                            <input type="text" id="settings-pm" placeholder="PM name">
+                        </div>
+                        <div class="form-group">
+                            <label>Start Date</label>
+                            <input type="date" id="settings-start">
+                        </div>
+                        <div class="form-group">
+                            <label>End Date</label>
+                            <input type="date" id="settings-end">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Settings</button>
+                </form>
+            </div>
+
+            <div class="settings-section">
+                <h2>Data Summary</h2>
+                <div id="settings-data-summary">
+                    <p class="muted">No data loaded yet.</p>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h2>How to Use This Tool</h2>
+                <div style="font-size:0.875rem; line-height:1.8; color:var(--text-muted);">
+                    <strong style="color:var(--navy);">Recommended setup order:</strong>
+                    <ol style="margin: 8px 0 0 20px; display:flex; flex-direction:column; gap:4px;">
+                        <li>Go to <strong>Settings</strong> and fill in project information.</li>
+                        <li>Go to <strong>Import Data → Registers</strong> and import your SOV, Work Packages, Cost Codes, and Phase Codes.</li>
+                        <li>Go to <strong>Import Data → Estimate Inputs</strong> and import your Quote, Material List, Labor Hours, etc.</li>
+                        <li>Go to <strong>Import Data → Current Spend</strong> and import PO logs, invoice logs, labor reports, etc.</li>
+                        <li>Go to <strong>Review &amp; Classify</strong> to review and approve spend classifications.</li>
+                        <li>View <strong>Comparisons</strong> and <strong>Dashboard</strong> for cost analysis.</li>
+                    </ol>
+                    <p style="margin-top:12px;"><strong style="color:var(--navy);">Important:</strong> Only approved spend items affect the official EAC and variance calculations. Low-confidence or unreviewed items are flagged on the Dashboard but do not move the numbers until approved.</p>
+                </div>
+            </div>
+
+            <!-- ── Team & Roles ──────────────────────────────────────────── -->
+            <div class="settings-section">
+                <h2>Team &amp; Roles</h2>
+
+                <div class="role-cards" id="role-cards-list">
+                    <!-- Populated by JS -->
+                </div>
+
+                <div style="margin-top:20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <span style="font-size:0.82rem; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:0.05em;">Team Members</span>
+                        <button class="btn btn-primary btn-sm" id="btn-add-member">+ Add Member</button>
+                    </div>
+                    <table class="data-table" id="team-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Email</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="team-table-body">
+                            <tr><td colspan="4" class="empty-state">No team members added.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ── Task Routing ──────────────────────────────────────────── -->
+            <div class="settings-section">
+                <h2>Default Task Routing</h2>
+                <table class="data-table" id="routing-table">
+                    <thead>
+                        <tr>
+                            <th>Task Type</th>
+                            <th>Responsible</th>
+                            <th>Accountable</th>
+                            <th>Reviewer</th>
+                            <th>Approver</th>
+                            <th>Support</th>
+                        </tr>
+                    </thead>
+                    <tbody id="routing-table-body">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="settings-section danger-zone">
+                <h2>Danger Zone</h2>
+                <p style="font-size:0.875rem; color:var(--text-muted); margin-bottom:16px;">This will permanently delete all project data stored in this browser. This cannot be undone.</p>
+                <button class="btn btn-danger" id="btn-reset-data">Clear All Data</button>
+            </div>
+        </section>
+
+    </main>
+    </div><!-- /.workspace -->
+</div><!-- /#app -->
+
+<!-- ── Classification Editor Modal ─────────────────────────────────────────── -->
+<div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal-box">
+        <div id="modal-content">
+            <!-- Populated by Modal.open() -->
+        </div>
+    </div>
+</div>
+
+<!-- ── Toast Container ──────────────────────────────────────────────────────── -->
+<div id="toast-container"></div>
+
+<!-- Scripts -->
+<script src="js/seed.js"></script>
+<script src="js/data.js"></script>
+<script src="js/classify.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

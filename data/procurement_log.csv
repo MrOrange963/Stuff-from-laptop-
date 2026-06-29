@@ -1,0 +1,9 @@
+date,vendorEmployee,description,amount,qty,unitCost,workPackageRef,costCode
+4/6/2026,(AWA 001),Bulletin 1 Telecom Revisions - Labor,30276.00,261,,26S-01030,NP-999-01030
+4/6/2026,(AWA 001),Bulletin 1 Telecom Revisions - Material,3407.73,,,,
+4/6/2026,(AWA 001),Bulletin 1 Telecom Revisions - Equipment,401.54,,,,
+4/6/2026,(AWA 001),Bulletin 1 Telecom Revisions - Subcontract,57676.00,,,,
+5/18/2026,(AWA 002),Bulletin 2 Underground Conduit Changes - Labor,25340.39,241.98,,26G-00930,01-999-00930
+5/18/2026,(AWA 002),Bulletin 2 Underground Conduit Changes - Material,15672.91,,,,
+5/18/2026,(AWA 002),Bulletin 2 Underground Conduit Changes - Equipment,372.65,,,,
+5/18/2026,(AWA 002),Bulletin 2 Underground Conduit Changes - Subcontract,136500.00,,,,

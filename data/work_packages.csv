@@ -1,0 +1,23 @@
+code,name,description,sovLineRef,budgetAmount
+26G-00920,Manholes & Vaults (26G),General Distribution - Manholes and Vaults,26G,114124.98
+26G-00930,Duct Bank / Trench Duct (26G),General Distribution - Duct Bank and Trench Duct,26G,1278263.93
+26G-01020,QA/QC & Commissioning (26G),General Distribution - QA/QC and Commissioning,26G,155031.64
+26G-01030,Field Supervision (26G),General Distribution - Field Supervision,26G,143085.81
+26G-01050,Trimble (26G),General Distribution - Trimble Layout,26G,69115.20
+26G-01070,Safety (26G),General Distribution - Safety,26G,39149.75
+26S-00120,Underground Branch (26S),Specialty - Underground Branch Distribution,26S,646464.83
+26S-00200,Feeder Underground Conduit (26S),Specialty - Feeder Underground Conduit,26S,117155.50
+26S-00210,Feeder Pull/Terminations (26S),Specialty - Feeder Pull and Terminations,26S,93403.96
+26S-00310,MV Cable Pull (26S),Specialty - Medium Voltage Cable Pull,26S,157980.59
+26S-00320,MV Cable Terminations (26S),Specialty - MV Cable Terminations (Deadbreaks),26S,107178.83
+26S-00460,Site Lighting (26S),Specialty - Site Lighting,26S,154187.63
+26S-00700,Switchgear / Panels / Xfmrs (26S),Specialty - Switchgear Panels and Transformers,26S,113101.79
+26S-00800,Demolition (26S),Specialty - Demolition,26S,74743.90
+26S-00980,Manholes & Vaults (26S),Specialty - Manholes and Vaults,26S,31499.78
+26S-00985,Duct Bank / Trench Duct (26S),Specialty - Duct Bank and Trench Duct,26S,561623.83
+26S-01020,Material Handler (26S),Specialty - Material Handler,26S,60023.74
+26S-01030,QA/QC (26S),Specialty - QA/QC,26S,187511.16
+26S-01035,Commissioning (26S),Specialty - Commissioning,26S,169029.60
+26S-01039,Field Supervision (26S),Specialty - Field Supervision,26S,799643.96
+26S-01045,Trimble (26S),Specialty - Trimble Layout,26S,261916.07
+26S-01100,Grounding Systems (26S),Specialty - Grounding Systems,26S,759816.90

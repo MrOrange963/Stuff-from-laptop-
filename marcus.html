@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Managed by Marcus</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f1a; overflow: hidden; height: 100vh; display: flex; align-items: center; justify-content: center; }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+@keyframes slideDown { from{opacity:0;transform:translateX(-50%) translateY(-20px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+@keyframes fadeIn { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+@keyframes toastIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+@keyframes wobble { 0%,100%{transform:rotate(0deg)} 25%{transform:rotate(-3deg)} 75%{transform:rotate(3deg)} }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+@keyframes paperFloat { 0%{transform:translateY(0) rotate(0deg)} 100%{transform:translateY(-30px) rotate(15deg)} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ── Constants ── */
+const GW = 900, GH = 540;
+const MARCUS_SPD = 4, NPC_SPD = 0.9;
+const INTERACT_D = 72;
+const MAX_MEET = 25, MAX_CRED = 3;
+const SPAWN_MS = 4200;
+
+/* ── Data ── */
+const MEETING_LINES = [
+  "Let's table that for a meeting later.",
+  "Let's circle back after alignment.",
+  "Let's schedule a follow-up to discuss ownership.",
+  "Let's take this offline and regroup.",
+  "Let's get all stakeholders in a room first.",
+];
+
+const SCENARIOS = [
+  {
+    npc:"Steve", role:"Scheduler", emoji:"👷",
+    problem:"The schedule is slipping. What should we do?",
+    real:["Crash the critical path with overtime.","Re-baseline and notify the owner in writing.","Issue a recovery schedule to subcontractors."],
+  },
+  {
+    npc:"Linda", role:"Project Manager", emoji:"💼",
+    problem:"The vendor is late. How should we handle it?",
+    real:["Call the vendor and issue a formal cure notice.","Source a backup supplier immediately.","Notify the owner and document the delay impact."],
+  },
+  {
+    npc:"Dave", role:"Cost Controller", emoji:"📊",
+    problem:"The budget is over forecast. What is the next step?",
+    real:["Identify the overrun cause and issue a change order.","Reduce scope or find cost savings elsewhere.","Update the EAC and brief all stakeholders."],
+  },
+  {
+    npc:"Raj", role:"Field Engineer", emoji:"🔧",
+    problem:"The RFI is still unanswered. Who owns this?",
+    real:["Escalate to the architect of record today.","Document the delay and follow up in writing.","Assign an owner and set a 24-hour deadline."],
+  },
+  {
+    npc:"Maria", role:"Superintendent", emoji:"🪖",
+    problem:"The crew has no updated drawings. What should happen?",
+    real:["Issue the latest revision to the field immediately.","Stop work in affected areas until drawings arrive.","Coordinate with BIM for expedited distribution."],
+  },
+  {
+    npc:"Tom", role:"Owner's Rep", emoji:"🤵",
+    problem:"The owner wants a status update. What do we tell them?",
+    real:["Send an honest executive summary with the EAC.","Schedule a briefing using current project data.","Provide a dashboard report with key milestones."],
+  },
+  {
+    npc:"Keisha", role:"Foreman", emoji:"🔨",
+    problem:"Material is missing on site. How do we recover?",
+    real:["Contact the supplier for emergency delivery.","Resequence work to avoid the material delay.","Check the warehouse and expedite shipping."],
+  },
+  {
+    npc:"Phil", role:"QC Manager", emoji:"📋",
+    problem:"The inspection failed. What is the plan?",
+    real:["Issue a NCR and corrective action plan.","Stop work and notify the engineer of record.","Rework the deficiency and reschedule inspection."],
+  },
+  {
+    npc:"Carla", role:"Safety Officer", emoji:"🦺",
+    problem:"There's a safety violation on the site. Who handles it?",
+    real:["Stop work order and notify OSHA if required.","Conduct an immediate toolbox talk and fix it now.","Document, correct, and retrain the crew today."],
+  },
+  {
+    npc:"Brett", role:"Subcontractor", emoji:"🏗️",
+    problem:"My sub says they need more time. What do I tell them?",
+    real:["Negotiate a revised milestone schedule today.","Evaluate float on the CPM and adjust resources.","Issue a written directive with revised deadlines."],
+  },
+];
+
+const MILESTONES = {5:"Weekly Alignment",10:"Pre-Meeting Coordinator",15:"Meeting About Previous Meetings",20:"Executive Alignment Specialist",25:"Strategic Leadership Summit"};
+
+function buildScenario(s) {
+  const meetLine = MEETING_LINES[Math.floor(Math.random()*MEETING_LINES.length)];
+  const answers = [
+    {text:meetLine, isMeeting:true},
+    ...s.real.map(t=>({text:t,isMeeting:false}))
+  ];
+  for(let i=answers.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[answers[i],answers[j]]=[answers[j],answers[i]];}
+  return {...s, answers};
+}
+
+/* ── Marcus SVG ── */
+function MarcusSVG({facing, confidence=0}) {
+  const smW = 5 + confidence*5;
+  const smY = 19 + confidence*2;
+  return (
+    <svg width="46" height="68" viewBox="0 0 46 68"
+      style={{transform: facing==='left'?'scaleX(-1)':'none', filter:'drop-shadow(2px 3px 5px rgba(0,0,0,0.4))'}}>
+      <ellipse cx="23" cy="65" rx="14" ry="3" fill="rgba(0,0,0,0.18)"/>
+      {/* Shoes */}
+      <rect x="8" y="57" width="13" height="7" rx="3.5" fill="#0d0d0d"/>
+      <rect x="25" y="57" width="13" height="7" rx="3.5" fill="#0d0d0d"/>
+      {/* Legs */}
+      <rect x="9" y="40" width="11" height="19" rx="2" fill="#1a1a1a"/>
+      <rect x="26" y="40" width="11" height="19" rx="2" fill="#1a1a1a"/>
+      {/* Belt */}
+      <rect x="8" y="39" width="30" height="4" rx="1" fill="#111"/>
+      <rect x="20" y="39" width="6" height="4" fill="#888"/>
+      {/* Shirt body */}
+      <rect x="7" y="23" width="30" height="18" rx="4" fill="#8B2346"/>
+      {/* Shirt collar + tie */}
+      <polygon points="20,23 23,30 26,23" fill="rgba(255,255,255,0.35)"/>
+      <rect x="21.5" y="28" width="3" height="10" rx="1" fill="#4a0a18"/>
+      {/* Clipboard in right hand */}
+      <rect x="33" y="26" width="11" height="14" rx="2" fill="#c8a35a"/>
+      <rect x="36" y="22" width="5" height="3" rx="1.5" fill="#777"/>
+      <line x1="35" y1="30" x2="42" y2="30" stroke="#7a6030" strokeWidth="1"/>
+      <line x1="35" y1="32.5" x2="42" y2="32.5" stroke="#7a6030" strokeWidth="1"/>
+      <line x1="35" y1="35" x2="40" y2="35" stroke="#7a6030" strokeWidth="1"/>
+      {/* Neck */}
+      <rect x="19" y="17" width="8" height="8" fill="#f5c5a3"/>
+      {/* Head */}
+      <ellipse cx="23" cy="13" rx="13" ry="13" fill="#f5c5a3"/>
+      {/* Bald top */}
+      <ellipse cx="23" cy="5" rx="13" ry="8" fill="#f5c5a3"/>
+      {/* Side hair tufts */}
+      <ellipse cx="10" cy="10" rx="5" ry="6" fill="#5a3e1b"/>
+      <ellipse cx="36" cy="10" rx="5" ry="6" fill="#5a3e1b"/>
+      {/* Thin comb-over */}
+      <path d="M16 4 Q23 1 30 4" stroke="#5a3e1b" strokeWidth="1.5" fill="none" opacity="0.5"/>
+      {/* Eyes */}
+      <ellipse cx="18" cy="13" rx="2.8" ry="2.8" fill="white"/>
+      <ellipse cx="28" cy="13" rx="2.8" ry="2.8" fill="white"/>
+      <circle cx="18" cy="13.5" r="1.5" fill="#2a1800"/>
+      <circle cx="28" cy="13.5" r="1.5" fill="#2a1800"/>
+      <circle cx="18.7" cy="12.8" r="0.5" fill="white"/>
+      <circle cx="28.7" cy="12.8" r="0.5" fill="white"/>
+      {/* Eyebrows */}
+      <path d="M15 10 Q18 8.5 21 10" stroke="#5a3e1b" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+      <path d="M25 10 Q28 8.5 31 10" stroke="#5a3e1b" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+      {/* Nose */}
+      <ellipse cx="23" cy="16" rx="1.2" ry="0.8" fill="#e0a882"/>
+      {/* Smile - grows with confidence */}
+      <path d={`M${23-smW} ${smY} Q23 ${smY+confidence*4+2} ${23+smW} ${smY}`}
+        stroke="#c0603a" strokeWidth="1.8" fill="none" strokeLinecap="round"/>
+      {/* Confidence blush */}
+      {confidence>0.4 && <>
+        <ellipse cx="14" cy="16" rx="3" ry="2" fill="rgba(255,120,120,0.3)"/>
+        <ellipse cx="32" cy="16" rx="3" ry="2" fill="rgba(255,120,120,0.3)"/>
+      </>}
+    </svg>
+  );
+}
+
+/* ── Office Decorations ── */
+function OfficeDecor({chaos}) {
+  const papers = chaos > 0.4 ? Math.floor(chaos*8) : 0;
+  return (
+    <div style={{position:'absolute',inset:0,pointerEvents:'none'}}>
+      {/* Floor */}
+      <div style={{position:'absolute',inset:0,
+        background:'#cbbfa5',
+        backgroundImage:'repeating-linear-gradient(0deg,rgba(0,0,0,0.04) 0,rgba(0,0,0,0.04) 1px,transparent 1px,transparent 60px),repeating-linear-gradient(90deg,rgba(0,0,0,0.04) 0,rgba(0,0,0,0.04) 1px,transparent 1px,transparent 60px)'
+      }}/>
+
+      {/* Conference table */}
+      <div style={{position:'absolute',left:28,top:28,width:190,height:110,background:'#8a7a65',borderRadius:6,border:'3px solid #6b5a4e'}}>
+        <div style={{position:'absolute',inset:'12px',background:'#5c4a35',borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:4}}>
+          <span style={{color:'#d4b896',fontSize:'9px',fontWeight:'bold',letterSpacing:'1px'}}>CONF. ROOM A</span>
+          <span style={{fontSize:'16px'}}>📅</span>
+        </div>
+        {[0,1,2].map(i=>(
+          <div key={i} style={{position:'absolute',top:'50%',left:`${18+i*28}%`,transform:'translateY(-50%)',width:18,height:8,background:'#3a2820',borderRadius:2}}/>
+        ))}
+      </div>
+
+      {/* Whiteboard */}
+      <div style={{position:'absolute',left:240,top:28,width:140,height:80,background:'#e8e8e8',border:'4px solid #8a7a65',borderRadius:3}}>
+        <div style={{padding:'6px',fontSize:'9px',color:'#333',lineHeight:1.4}}>
+          <div style={{color:'#555',fontWeight:'bold',marginBottom:3}}>ACTION ITEMS:</div>
+          <div style={{color:'#999'}}>• Schedule meeting re: meetings</div>
+          <div style={{color:'#999'}}>• Pre-align for alignment</div>
+          <div style={{color:chaos>0.5?'#e53e3e':'#999'}}>• {chaos>0.5?'🔥 CHAOS':'Circle back on scope'}</div>
+        </div>
+      </div>
+
+      {/* Workstation cluster - right side */}
+      {[0,1,2].map(i=>(
+        <div key={i} style={{position:'absolute',right:30,top:30+i*108,width:90,height:72,background:'#bfae94',border:'2px solid #9a8870',borderRadius:4,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:2}}>
+          <span style={{fontSize:'20px'}}>💻</span>
+          <span style={{fontSize:'8px',color:'#6b5a3e'}}>{['Desk A','Desk B','Desk C'][i]}</span>
+          {chaos>0.6 && <span style={{fontSize:'12px',animation:'pulse 1s infinite'}}>😤</span>}
+        </div>
+      ))}
+
+      {/* Filing cabinet */}
+      <div style={{position:'absolute',right:148,top:28,width:52,height:90,background:'#8a9898',border:'2px solid #6a7878',borderRadius:2}}>
+        {[0,1,2].map(i=>(
+          <React.Fragment key={i}>
+            <div style={{position:'absolute',top:`${5+i*32}%`,left:0,right:0,height:2,background:'#6a7878'}}/>
+            <div style={{position:'absolute',top:`${12+i*32}%`,left:'30%',right:'30%',height:3,background:'#aaa',borderRadius:2}}/>
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* Construction zone */}
+      <div style={{position:'absolute',left:390,bottom:16,width:260,height:140,borderRadius:6,border:'3px dashed #f6c90e',overflow:'hidden'}}>
+        <div style={{position:'absolute',inset:0,background:'repeating-linear-gradient(45deg,rgba(246,201,14,0.12) 0,rgba(246,201,14,0.12) 10px,rgba(0,0,0,0.12) 10px,rgba(0,0,0,0.12) 20px)'}}/>
+        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:4}}>
+          <span style={{fontSize:'28px'}}>🏗️</span>
+          <span style={{fontSize:'10px',fontWeight:700,color:'#f6c90e',background:'rgba(0,0,0,0.65)',padding:'2px 8px',borderRadius:3,letterSpacing:'1px'}}>CONSTRUCTION ZONE</span>
+        </div>
+      </div>
+
+      {/* Water cooler */}
+      <div style={{position:'absolute',left:700,top:30}}>
+        <div style={{width:28,height:40,background:'#4a90d9',borderRadius:'6px 6px 4px 4px',border:'2px solid #2c6faa',position:'relative'}}>
+          <div style={{position:'absolute',top:3,left:'50%',transform:'translateX(-50%)',width:16,height:8,background:'#6bb8f5',borderRadius:3}}/>
+          <div style={{position:'absolute',bottom:0,left:'50%',transform:'translateX(-50%)',width:20,height:8,background:'#2c6faa',borderRadius:'0 0 3px 3px'}}/>
+        </div>
+        <div style={{width:28,height:8,background:'#888',borderRadius:2,margin:'0 auto'}}/>
+        {chaos>0.6 && <div style={{position:'absolute',top:-12,left:14,fontSize:'14px',animation:'bounce 0.5s infinite'}}>💧</div>}
+      </div>
+
+      {/* Floating paper chaos */}
+      {Array.from({length:papers}).map((_,i)=>(
+        <div key={i} style={{
+          position:'absolute',
+          left:`${10+i*12}%`, top:`${20+i*8}%`,
+          fontSize:'14px',
+          opacity: chaos*0.7,
+          transform:`rotate(${-20+i*7}deg)`,
+          animation:`paperFloat ${1.5+i*0.3}s ease-in-out infinite alternate`
+        }}>📄</div>
+      ))}
+
+      {/* Chaos fire */}
+      {chaos>0.7 && (
+        <div style={{position:'absolute',left:680,bottom:60,fontSize:'22px',animation:'bounce 0.4s infinite'}}>🔥</div>
+      )}
+      {chaos>0.85 && (
+        <div style={{position:'absolute',left:200,bottom:40,fontSize:'18px',animation:'pulse 0.8s infinite'}}>⚠️</div>
+      )}
+
+      {/* Tint overlay */}
+      <div style={{position:'absolute',inset:0,
+        background:`rgba(255,${Math.floor(200-chaos*160)},0,${chaos*0.1})`,
+        pointerEvents:'none'
+      }}/>
+    </div>
+  );
+}
+
+/* ── Meter ── */
+function Meter({label, value, max, color, icon, flash=false}) {
+  const pct = Math.min(100,(value/max)*100);
+  return (
+    <div style={{flex:1}}>
+      <div style={{display:'flex',justifyContent:'space-between',fontSize:'10px',color:'#aaa',marginBottom:3}}>
+        <span>{icon} {label}</span>
+        <span style={{color,fontWeight:'bold'}}>{typeof value==='number'&&value%1===0?value:value}/{max}</span>
+      </div>
+      <div style={{height:9,background:'#2d3748',borderRadius:5,overflow:'hidden'}}>
+        <div style={{
+          width:`${pct}%`, height:'100%', background:color, borderRadius:5,
+          transition:'width 0.4s ease',
+          boxShadow: flash ? `0 0 6px ${color}` : 'none'
+        }}/>
+      </div>
+    </div>
+  );
+}
+
+/* ── Dialog ── */
+function DialogBox({scenario, onAnswer, meetings}) {
+  const [picked, setPicked] = useState(null);
+  const [done, setDone] = useState(false);
+
+  function pick(ans, i) {
+    if(done) return;
+    setPicked(i);
+    setDone(true);
+    setTimeout(()=>{ onAnswer(ans); setPicked(null); setDone(false); }, 1500);
+  }
+
+  return (
+    <div style={{
+      position:'absolute',inset:0,background:'rgba(0,0,0,0.7)',
+      display:'flex',alignItems:'center',justifyContent:'center',zIndex:300,
+      animation:'fadeIn 0.2s ease'
+    }}>
+      <div style={{
+        background:'#1a1f35',border:'2px solid #4a5568',borderRadius:14,
+        padding:'26px 28px',width:580,boxShadow:'0 24px 70px rgba(0,0,0,0.8)'
+      }}>
+        {/* NPC header */}
+        <div style={{display:'flex',gap:14,marginBottom:18,alignItems:'flex-start'}}>
+          <div style={{fontSize:42,lineHeight:1}}>{scenario.emoji}</div>
+          <div style={{flex:1}}>
+            <div style={{color:'#90cdf4',fontWeight:700,fontSize:13,marginBottom:4}}>
+              {scenario.npc} — <span style={{color:'#718096'}}>{scenario.role}</span>
+            </div>
+            <div style={{
+              color:'#f0f4f8',fontSize:16,fontWeight:600,lineHeight:1.4,
+              background:'rgba(255,255,255,0.05)',borderRadius:8,padding:'10px 14px',
+              borderLeft:'3px solid #63b3ed'
+            }}>
+              "{scenario.problem}"
+            </div>
+          </div>
+        </div>
+
+        <div style={{color:'#718096',fontSize:11,marginBottom:14,textAlign:'center'}}>
+          Choose Marcus's response:
+        </div>
+
+        {/* Answer grid */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          {scenario.answers.map((ans,i)=>{
+            let bg='#2d3748', border='#4a5568', textColor='#e2e8f0', glow='';
+            if(done && picked===i) {
+              if(ans.isMeeting){bg='#1a4a30';border='#38a169';textColor='#9ae6b4';glow='0 0 12px rgba(56,161,105,0.4)';}
+              else{bg='#4a1515';border='#e53e3e';textColor='#feb2b2';glow='0 0 12px rgba(229,62,62,0.4)';}
+            } else if(done && ans.isMeeting) {
+              bg='#1a3524';border='#2f855a';textColor='#9ae6b4';
+            }
+            return (
+              <button key={i} onClick={()=>pick(ans,i)} disabled={done}
+                style={{
+                  background:bg,border:`2px solid ${border}`,borderRadius:10,
+                  padding:'13px 14px',color:textColor,fontSize:13,
+                  cursor:done?'default':'pointer',textAlign:'left',
+                  lineHeight:1.45,transition:'all 0.15s',
+                  boxShadow:glow,
+                  opacity:done&&!ans.isMeeting&&picked!==i?0.45:1,
+                  display:'flex',gap:10,alignItems:'flex-start'
+                }}
+                onMouseEnter={e=>{if(!done){e.currentTarget.style.borderColor='#63b3ed';e.currentTarget.style.background='#374151';}}}
+                onMouseLeave={e=>{if(!done){e.currentTarget.style.borderColor='#4a5568';e.currentTarget.style.background='#2d3748';}}}
+              >
+                <span style={{fontSize:18,flexShrink:0}}>{ans.isMeeting?'📅':'🔧'}</span>
+                <div>
+                  <div>{ans.text}</div>
+                  {done&&ans.isMeeting&&<div style={{marginTop:4,fontSize:10,color:'#68d391',fontWeight:700}}>✓ CORRECT MARCUS RESPONSE</div>}
+                  {done&&picked===i&&!ans.isMeeting&&<div style={{marginTop:4,fontSize:10,color:'#fc8181',fontWeight:700}}>✗ ACTUAL SOLUTION (NO!)</div>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div style={{marginTop:14,textAlign:'center',fontSize:10,color:'#4a5568'}}>
+          📅 {meetings} / {MAX_MEET} meetings • 💼 Remember: real solutions lose credibility
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Toast ── */
+function Toast({msg, good}) {
+  return (
+    <div style={{
+      position:'fixed',top:80,right:20,zIndex:999,
+      background:good?'#1a4731':'#4a1515',
+      border:`2px solid ${good?'#38a169':'#e53e3e'}`,
+      borderRadius:10,padding:'10px 18px',
+      color:'#fff',fontSize:13,fontWeight:600,
+      boxShadow:'0 6px 24px rgba(0,0,0,0.5)',
+      animation:'toastIn 0.3s ease'
+    }}>
+      {good?'📅 ':'⚡ '}{msg}
+    </div>
+  );
+}
+
+/* ── Milestone Banner ── */
+function MilestoneBanner({title}) {
+  return (
+    <div style={{
+      position:'absolute',top:16,left:'50%',
+      transform:'translateX(-50%)',zIndex:400,
+      background:'linear-gradient(90deg,#744210,#975a16)',
+      border:'2px solid #f6ad55',borderRadius:12,
+      padding:'10px 28px',textAlign:'center',
+      boxShadow:'0 4px 24px rgba(246,173,85,0.45)',
+      animation:'slideDown 0.4s ease'
+    }}>
+      <div style={{color:'#fefcbf',fontSize:10,letterSpacing:2,fontWeight:700}}>🏅 TITLE UNLOCKED</div>
+      <div style={{color:'#fbd38d',fontSize:20,fontWeight:900,marginTop:2}}>{title}</div>
+    </div>
+  );
+}
+
+/* ── Title Screen ── */
+function TitleScreen({onStart}) {
+  return (
+    <div style={{
+      height:'100vh',display:'flex',alignItems:'center',justifyContent:'center',
+      background:'linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)'
+    }}>
+      <div style={{textAlign:'center',color:'white',maxWidth:640,padding:'0 20px'}}>
+        {/* Marcus preview */}
+        <div style={{display:'flex',justifyContent:'center',marginBottom:16,animation:'bounce 2s infinite'}}>
+          <MarcusSVG facing="right" confidence={0.9}/>
+        </div>
+        <h1 style={{
+          fontSize:54,fontWeight:900,marginBottom:8,lineHeight:1,
+          background:'linear-gradient(90deg,#f6ad55,#ed8936)',
+          WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'
+        }}>Managed by Marcus</h1>
+        <p style={{fontSize:16,color:'#90cdf4',marginBottom:6}}>A Project Management Parody</p>
+        <p style={{fontSize:13,color:'#718096',marginBottom:32,fontStyle:'italic'}}>
+          "There's no problem that can't be solved by scheduling a meeting about it."
+        </p>
+
+        <div style={{
+          background:'rgba(255,255,255,0.05)',borderRadius:14,padding:'20px 28px',
+          border:'1px solid rgba(255,255,255,0.1)',marginBottom:28,textAlign:'left'
+        }}>
+          <h3 style={{color:'#f6ad55',marginBottom:14,fontSize:15,letterSpacing:1}}>📌 HOW TO PLAY</h3>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,fontSize:13,color:'#cbd5e0',lineHeight:1.5}}>
+            <div>🕹️ Move Marcus with <strong style={{color:'#90cdf4'}}>WASD</strong> or <strong style={{color:'#90cdf4'}}>Arrow Keys</strong></div>
+            <div>👥 NPCs approach you with real problems</div>
+            <div>📅 Always pick the <strong style={{color:'#68d391'}}>meeting answer</strong> to score</div>
+            <div>🚫 Solve 3 real problems and you <strong style={{color:'#fc8181'}}>lose</strong></div>
+            <div>🏆 Fill calendar with <strong style={{color:'#63b3ed'}}>25 meetings</strong> to win</div>
+            <div>🔥 Watch Office Chaos climb as meetings grow!</div>
+          </div>
+        </div>
+
+        <div style={{display:'flex',gap:10,justifyContent:'center',marginBottom:16,flexWrap:'wrap'}}>
+          {Object.entries(MILESTONES).map(([k,v])=>(
+            <div key={k} style={{background:'rgba(246,173,85,0.1)',border:'1px solid rgba(246,173,85,0.3)',borderRadius:8,padding:'6px 12px',fontSize:11,color:'#f6ad55'}}>
+              <strong>{k}</strong> → {v}
+            </div>
+          ))}
+        </div>
+
+        <button onClick={onStart} style={{
+          background:'linear-gradient(90deg,#ed8936,#dd6b20)',
+          border:'none',borderRadius:12,padding:'16px 52px',
+          color:'white',fontSize:20,fontWeight:700,cursor:'pointer',
+          boxShadow:'0 4px 24px rgba(237,137,54,0.4)',transition:'transform 0.15s, box-shadow 0.15s'
+        }}
+        onMouseEnter={e=>{e.currentTarget.style.transform='scale(1.06)';e.currentTarget.style.boxShadow='0 6px 32px rgba(237,137,54,0.6)';}}
+        onMouseLeave={e=>{e.currentTarget.style.transform='scale(1)';e.currentTarget.style.boxShadow='0 4px 24px rgba(237,137,54,0.4)';}}>
+          Start Managing 🚀
+        </button>
+
+        <p style={{fontSize:10,color:'#2d3748',marginTop:20}}>
+          No real people, companies, or projects were referenced. Marcus is entirely fictional. Any resemblance to your actual PM is purely coincidental (and terrifying).
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Win Screen ── */
+function WinScreen({meetings, onRestart}) {
+  return (
+    <div style={{
+      height:'100vh',display:'flex',alignItems:'center',justifyContent:'center',
+      background:'linear-gradient(135deg,#1a4731,#22543d,#276749)'
+    }}>
+      <div style={{textAlign:'center',color:'white',maxWidth:560,padding:'0 20px',animation:'fadeIn 0.5s ease'}}>
+        <div style={{fontSize:80,marginBottom:16}}>🏆</div>
+        <h1 style={{fontSize:46,fontWeight:900,color:'#9ae6b4',marginBottom:10}}>Corporate Success!</h1>
+        <p style={{fontSize:22,color:'#68d391',marginBottom:8,lineHeight:1.5}}>
+          You solved absolutely nothing,<br/>but everyone has a meeting.
+        </p>
+        <p style={{color:'#4fd1c5',fontSize:14,marginBottom:24,fontStyle:'italic'}}>
+          — Marcus has been promoted to Senior VP of Stakeholder Alignment —
+        </p>
+        <div style={{
+          background:'rgba(0,0,0,0.3)',borderRadius:14,padding:'20px 28px',
+          border:'1px solid rgba(154,230,180,0.3)',marginBottom:28,textAlign:'left'
+        }}>
+          <div style={{color:'#9ae6b4',fontWeight:700,marginBottom:10,fontSize:15}}>
+            🏅 Final Title: Strategic Leadership Summit
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,fontSize:13,color:'#68d391'}}>
+            <div>📅 {meetings} meetings scheduled</div>
+            <div>✅ 0 problems actually solved</div>
+            <div>🔥 Office chaos: MAXIMUM</div>
+            <div>💼 Mgmt Credibility: IMMACULATE</div>
+            <div>📊 Project completion: Unclear</div>
+            <div>🥂 Calendar: Completely unusable</div>
+          </div>
+        </div>
+        <button onClick={onRestart} style={{
+          background:'linear-gradient(90deg,#38a169,#2f855a)',
+          border:'none',borderRadius:12,padding:'14px 40px',
+          color:'white',fontSize:18,fontWeight:700,cursor:'pointer',
+          boxShadow:'0 4px 20px rgba(56,161,105,0.4)'
+        }}>
+          Manage Again 🔄
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Lose Screen ── */
+function LoseScreen({meetings, onRestart}) {
+  return (
+    <div style={{
+      height:'100vh',display:'flex',alignItems:'center',justifyContent:'center',
+      background:'linear-gradient(135deg,#4a1515,#742a2a,#7b341e)'
+    }}>
+      <div style={{textAlign:'center',color:'white',maxWidth:560,padding:'0 20px',animation:'fadeIn 0.5s ease'}}>
+        <div style={{fontSize:80,marginBottom:16}}>😱</div>
+        <h1 style={{fontSize:38,fontWeight:900,color:'#feb2b2',marginBottom:12,lineHeight:1.2}}>
+          You accidentally became<br/>an effective leader.
+        </h1>
+        <p style={{color:'#fc8181',fontSize:16,marginBottom:8}}>
+          Your employees are getting things done. The project is on track.
+        </p>
+        <p style={{color:'#fc8181',fontSize:13,marginBottom:24,fontStyle:'italic'}}>
+          Marcus has been reassigned to "Special Projects."<br/>(Translation: they're figuring out what to do with him.)
+        </p>
+        <div style={{
+          background:'rgba(0,0,0,0.3)',borderRadius:14,padding:'20px 28px',
+          border:'1px solid rgba(254,178,178,0.3)',marginBottom:28,textAlign:'left'
+        }}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,fontSize:13,color:'#fc8181'}}>
+            <div>❌ {MAX_CRED} real problems solved</div>
+            <div>📅 Only {meetings} meetings scheduled</div>
+            <div>😔 People are actually working</div>
+            <div>💀 Calendar has empty slots</div>
+            <div>📈 Project: Suspiciously on track</div>
+            <div>🧠 Leadership: Accidentally competent</div>
+          </div>
+        </div>
+        <p style={{color:'#fc8181',fontSize:12,marginBottom:20,fontStyle:'italic'}}>
+          Your employees thank you. Your VP of Strategy does not.
+        </p>
+        <button onClick={onRestart} style={{
+          background:'linear-gradient(90deg,#e53e3e,#c53030)',
+          border:'none',borderRadius:12,padding:'14px 40px',
+          color:'white',fontSize:18,fontWeight:700,cursor:'pointer',
+          boxShadow:'0 4px 20px rgba(229,62,62,0.4)'
+        }}>
+          Try Being Worse 🔄
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── MAIN GAME ── */
+function Game() {
+  const [phase, setPhase] = useState('title');
+
+  // Game state
+  const [meetings, setMeetings] = useState(0);
+  const [credLosses, setCredLosses] = useState(0);
+  const [chaos, setChaos] = useState(0);
+  const [projComplete, setProjComplete] = useState(100);
+  const [marcusPos, setMarcusPos] = useState({x:430,y:270});
+  const [facing, setFacing] = useState('right');
+  const [walking, setWalking] = useState(false);
+  const [npcs, setNpcs] = useState([]);
+  const [activeScenario, setActiveScenario] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [milestone, setMilestone] = useState(null);
+
+  // Refs for game loop
+  const keysRef = useRef({});
+  const marcusPosRef = useRef({x:430,y:270});
+  const interactingRef = useRef(false);
+  const npcsRef = useRef([]);
+  const npcIdRef = useRef(0);
+  const meetingsRef = useRef(0);
+  const credRef = useRef(0);
+  const phaseRef = useRef('title');
+
+  useEffect(()=>{ phaseRef.current = phase; }, [phase]);
+  useEffect(()=>{ meetingsRef.current = meetings; }, [meetings]);
+  useEffect(()=>{ credRef.current = credLosses; }, [credLosses]);
+
+  function resetGame() {
+    keysRef.current = {};
+    interactingRef.current = false;
+    npcsRef.current = [];
+    npcIdRef.current = 0;
+    meetingsRef.current = 0;
+    credRef.current = 0;
+    const start = {x:430,y:270};
+    marcusPosRef.current = start;
+    setMeetings(0);
+    setCredLosses(0);
+    setChaos(0);
+    setProjComplete(100);
+    setMarcusPos(start);
+    setFacing('right');
+    setWalking(false);
+    setNpcs([]);
+    setActiveScenario(null);
+    setToast(null);
+    setMilestone(null);
+  }
+
+  function startGame() {
+    resetGame();
+    setPhase('playing');
+    phaseRef.current = 'playing';
+  }
+
+  /* Keyboard */
+  useEffect(()=>{
+    if(phase!=='playing') return;
+    const dn = e => {
+      keysRef.current[e.key] = true;
+      if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+    };
+    const up = e => { keysRef.current[e.key] = false; };
+    window.addEventListener('keydown', dn);
+    window.addEventListener('keyup', up);
+    return ()=>{ window.removeEventListener('keydown',dn); window.removeEventListener('keyup',up); };
+  },[phase]);
+
+  /* NPC spawning */
+  useEffect(()=>{
+    if(phase!=='playing') return;
+    function spawnNPC() {
+      if(interactingRef.current || npcsRef.current.length>=4) return;
+      const edge = Math.floor(Math.random()*4);
+      let x,y;
+      if(edge===0){x=Math.random()*GW;y=-40;}
+      else if(edge===1){x=GW+40;y=Math.random()*GH;}
+      else if(edge===2){x=Math.random()*GW;y=GH+40;}
+      else{x=-40;y=Math.random()*GH;}
+      const s = SCENARIOS[Math.floor(Math.random()*SCENARIOS.length)];
+      const npc = {id:npcIdRef.current++, x, y, scenario:buildScenario(s)};
+      npcsRef.current = [...npcsRef.current, npc];
+      setNpcs([...npcsRef.current]);
+    }
+    const t1 = setTimeout(spawnNPC, 600);
+    const iv = setInterval(spawnNPC, SPAWN_MS);
+    return ()=>{ clearTimeout(t1); clearInterval(iv); };
+  },[phase]);
+
+  /* Game loop */
+  useEffect(()=>{
+    if(phase!=='playing') return;
+    let animId;
+    function loop() {
+      if(phaseRef.current!=='playing'){cancelAnimationFrame(animId);return;}
+      if(!interactingRef.current){
+        const k = keysRef.current;
+        let dx=0,dy=0;
+        if(k['ArrowLeft']||k['a']||k['A']) dx-=MARCUS_SPD;
+        if(k['ArrowRight']||k['d']||k['D']) dx+=MARCUS_SPD;
+        if(k['ArrowUp']||k['w']||k['W']) dy-=MARCUS_SPD;
+        if(k['ArrowDown']||k['s']||k['S']) dy+=MARCUS_SPD;
+
+        const mov = dx!==0||dy!==0;
+        if(mov) {
+          // Normalize diagonal
+          if(dx!==0&&dy!==0){dx*=0.707;dy*=0.707;}
+          const nx = Math.max(10,Math.min(GW-56,marcusPosRef.current.x+dx));
+          const ny = Math.max(10,Math.min(GH-74,marcusPosRef.current.y+dy));
+          marcusPosRef.current={x:nx,y:ny};
+          setMarcusPos({x:nx,y:ny});
+          if(dx<0) setFacing('left');
+          if(dx>0) setFacing('right');
+        }
+        setWalking(mov);
+
+        // Move NPCs + check collision
+        const cur = npcsRef.current;
+        let triggered = false;
+        const updated = cur.map(npc=>{
+          const ddx = marcusPosRef.current.x - npc.x;
+          const ddy = marcusPosRef.current.y - npc.y;
+          const dist = Math.sqrt(ddx*ddx+ddy*ddy);
+          if(dist < INTERACT_D && !triggered && !interactingRef.current) {
+            triggered = true;
+            interactingRef.current = true;
+            const sc = npc.scenario;
+            const nid = npc.id;
+            requestAnimationFrame(()=>{
+              setActiveScenario(sc);
+              npcsRef.current = npcsRef.current.filter(n=>n.id!==nid);
+              setNpcs([...npcsRef.current]);
+            });
+          }
+          if(dist < 2) return npc;
+          return {...npc, x:npc.x+(ddx/dist)*NPC_SPD, y:npc.y+(ddy/dist)*NPC_SPD};
+        });
+        npcsRef.current = updated;
+        setNpcs([...updated]);
+      }
+      animId = requestAnimationFrame(loop);
+    }
+    animId = requestAnimationFrame(loop);
+    return ()=>cancelAnimationFrame(animId);
+  },[phase]);
+
+  function handleAnswer(ans) {
+    setActiveScenario(null);
+    interactingRef.current = false;
+
+    if(ans.isMeeting) {
+      const nm = meetingsRef.current+1;
+      meetingsRef.current = nm;
+      setMeetings(nm);
+      const nc = Math.min(1,nm/MAX_MEET);
+      setChaos(nc);
+      setProjComplete(Math.max(0,100-nm*3.5));
+
+      showToast(`Meeting #${nm} added to calendar!`, true);
+
+      if(MILESTONES[nm]) {
+        setMilestone(MILESTONES[nm]);
+        setTimeout(()=>setMilestone(null),3200);
+      }
+      if(nm>=MAX_MEET) { setTimeout(()=>setPhase('win'),400); return; }
+    } else {
+      const nl = credRef.current+1;
+      credRef.current = nl;
+      setCredLosses(nl);
+      showToast('Management Credibility lost! (-1)', false);
+      if(nl>=MAX_CRED) { setTimeout(()=>setPhase('lose'),400); return; }
+    }
+  }
+
+  function showToast(msg,good) {
+    setToast({msg,good});
+    setTimeout(()=>setToast(null),2600);
+  }
+
+  const confidence = Math.min(1, meetings/MAX_MEET);
+  const credRemain = MAX_CRED - credLosses;
+  const curMilestone = Object.entries(MILESTONES).reverse().find(([k])=>meetings>=parseInt(k));
+
+  if(phase==='title') return <TitleScreen onStart={startGame}/>;
+  if(phase==='win') return <WinScreen meetings={meetings} onRestart={()=>setPhase('title')}/>;
+  if(phase==='lose') return <LoseScreen meetings={meetings} onRestart={()=>setPhase('title')}/>;
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center'}}>
+
+      {/* HUD */}
+      <div style={{
+        width:GW,background:'#0f1420',
+        padding:'10px 18px',borderRadius:'10px 10px 0 0',
+        border:'2px solid #2d3748',borderBottom:'1px solid #2d3748'
+      }}>
+        <div style={{display:'flex',gap:14,alignItems:'center'}}>
+          {/* Marcus title */}
+          <div style={{minWidth:155}}>
+            <div style={{color:'#f6ad55',fontWeight:900,fontSize:17,letterSpacing:0.5}}>📋 MARCUS</div>
+            <div style={{color:'#718096',fontSize:9,marginTop:1}}>
+              {curMilestone ? `🏅 ${curMilestone[1]}` : 'Project Director'}
+            </div>
+          </div>
+
+          {/* Meters */}
+          <div style={{flex:1,display:'flex',gap:14}}>
+            <Meter label="Calendar" value={meetings} max={MAX_MEET} color="#63b3ed" icon="📅" flash={meetings>0&&meetings%5===0}/>
+            <Meter label="Credibility" value={credRemain} max={MAX_CRED} color={credRemain===1?'#fc8181':'#68d391'} icon="💼"/>
+            <Meter label="Chaos" value={Math.round(chaos*100)} max={100} color={chaos>0.6?'#fc8181':chaos>0.3?'#f6ad55':'#68d391'} icon="🔥"/>
+            <Meter label="Project %" value={Math.round(projComplete)} max={100} color="#f6ad55" icon="🏗️"/>
+          </div>
+
+          {/* Meeting badge */}
+          <div style={{
+            textAlign:'center',minWidth:72,background:'#1a2035',
+            borderRadius:10,padding:'6px 10px',border:'2px solid #2d3748',
+            boxShadow: meetings>0 ? '0 0 10px rgba(99,179,237,0.2)' : 'none'
+          }}>
+            <div style={{fontSize:26,fontWeight:900,color:'#63b3ed',lineHeight:1}}>{meetings}</div>
+            <div style={{fontSize:9,color:'#718096',marginTop:2,letterSpacing:1}}>MEETINGS</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Game World */}
+      <div style={{
+        position:'relative',width:GW,height:GH,overflow:'hidden',
+        border:'2px solid #2d3748',borderTop:'none',borderRadius:'0 0 10px 10px'
+      }}>
+        <OfficeDecor chaos={chaos}/>
+
+        {/* NPCs */}
+        {npcs.map(npc=>(
+          <div key={npc.id} style={{
+            position:'absolute',left:npc.x,top:npc.y,
+            transform:'translate(-50%,-50%)',
+            zIndex:9,textAlign:'center',pointerEvents:'none'
+          }}>
+            <div style={{
+              fontSize:'10px',color:'#e2e8f0',fontWeight:600,
+              background:'rgba(0,0,0,0.72)',borderRadius:5,padding:'1px 6px',
+              marginBottom:3,whiteSpace:'nowrap'
+            }}>
+              {npc.scenario.npc} • {npc.scenario.role}
+            </div>
+            <div style={{
+              fontSize:32,
+              filter:chaos>0.5?'saturate(180%)':'none',
+              animation:'bounce 0.45s infinite'
+            }}>
+              {npc.scenario.emoji}
+            </div>
+            <div style={{
+              fontSize:'9px',color:'#90cdf4',
+              background:'rgba(0,0,0,0.7)',borderRadius:5,padding:'2px 5px',
+              maxWidth:90,textAlign:'center',lineHeight:1.3,marginTop:2,
+              whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'
+            }}>
+              ❓ {npc.scenario.problem.slice(0,22)}…
+            </div>
+          </div>
+        ))}
+
+        {/* Marcus */}
+        <div style={{
+          position:'absolute',
+          left:marcusPos.x, top:marcusPos.y,
+          zIndex:10,
+          transform:walking?'translateY(-3px)':'translateY(0)',
+          transition:'transform 0.08s'
+        }}>
+          <div style={{textAlign:'center',fontSize:'9px',color:'#f6ad55',fontWeight:700,marginBottom:1,letterSpacing:1}}>
+            MARCUS
+          </div>
+          <MarcusSVG facing={facing} confidence={confidence}/>
+        </div>
+
+        {/* Dialog */}
+        {activeScenario && (
+          <DialogBox scenario={activeScenario} onAnswer={handleAnswer} meetings={meetings}/>
+        )}
+
+        {/* Milestone banner */}
+        {milestone && <MilestoneBanner title={milestone}/>}
+
+        {/* Corner legend */}
+        <div style={{
+          position:'absolute',bottom:8,left:10,
+          fontSize:10,color:'rgba(255,255,255,0.35)',pointerEvents:'none'
+        }}>
+          WASD / Arrow Keys to move
+        </div>
+
+        {/* Chaos warning */}
+        {chaos>0.7 && (
+          <div style={{
+            position:'absolute',bottom:8,right:10,
+            fontSize:10,color:'#fc8181',fontWeight:700,
+            animation:'pulse 1s infinite'
+          }}>
+            ⚠️ HIGH OFFICE CHAOS
+          </div>
+        )}
+      </div>
+
+      {/* Toast */}
+      {toast && <Toast msg={toast.msg} good={toast.good}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Game/>);
+</script>
+</body>
+</html>
